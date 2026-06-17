@@ -24,9 +24,7 @@ COPY client/package.json ./client/package.json
 
 # Install all dependencies (including devDeps for build tools) for all workspaces
 RUN echo "Starting yarn install (this may take several minutes)..." && \
-    yarn install --immutable || \
-    (echo "⚠️  Immutable install failed, falling back to regular install..." && \
-     yarn install) && \
+    yarn install && \
     echo "✅ yarn install completed successfully"
 
 # -------------------------------------------------------------------
