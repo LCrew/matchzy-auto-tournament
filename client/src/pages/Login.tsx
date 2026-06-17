@@ -149,8 +149,8 @@ export default function Login() {
                 }}
               >
                 <img
-                  src="/nice.png"
-                  alt="MatchZy Auto Tournament Logo"
+                  src="/faviconv2.png"
+                  alt="CS-FULM SCRIM"
                   style={{ width: '108px', height: '108px' }}
                 />
               </Box>

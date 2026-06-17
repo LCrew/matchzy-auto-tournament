@@ -520,9 +520,9 @@ export default function Layout() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box component="img" src="/nice.png" alt="Logo" sx={{ width: 32, height: 32 }} />
+              <Box component="img" src="/faviconv2.png" alt="Logo" sx={{ width: 32, height: 32 }} />
               <Typography variant="body2" noWrap component="div" sx={{ fontWeight: 600 }}>
-                Matchzy Auto Tournament
+                CS-FULM SCRIM
               </Typography>
             </Box>
             <IconButton onClick={handleDrawerClose}>

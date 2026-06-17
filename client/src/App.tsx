@@ -61,7 +61,7 @@ function ProtectedRoute({ children, adminOnly = true }: ProtectedRouteProps) {
         <Box textAlign="center">
           <Box
             component="img"
-            src="/nice.png"
+            src="/faviconv2.png"
             alt="Logo"
             sx={{
               width: 80,
@@ -184,17 +184,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Inventory — accessible by any signed-in user */}
-      <Route
-        path="/inventory"
-        element={
-          <ProtectedRoute adminOnly={false}>
-            <Inventory />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Player-facing lobby routes — accessible by any signed-in user */}
+      {/* Player-facing routes — accessible by any signed-in user */}
       <Route
         path="/lobby"
         element={
@@ -205,6 +195,16 @@ function AppRoutes() {
       >
         <Route index element={<Lobbies />} />
         <Route path=":id" element={<LobbyRoom />} />
+      </Route>
+      <Route
+        path="/inventory"
+        element={
+          <ProtectedRoute adminOnly={false}>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Inventory />} />
       </Route>
 
       <Route
