@@ -21,19 +21,33 @@ function getPlayerSteamId(req: Request): string | null {
   return null;
 }
 
-function getPlayerInfo(req: Request): { steamId: string; name: string; avatar?: string } | null {
+async function getPlayerInfo(req: Request): Promise<{ steamId: string; name: string; avatar?: string } | null> {
   const steamId = getPlayerSteamId(req);
   if (!steamId) return null;
+
+  // Try session first
   const anyReq = req as Request & { user?: { displayName?: string; avatarUrl?: string } };
-  return {
-    steamId,
-    name: anyReq.user?.displayName || steamId,
-    avatar: anyReq.user?.avatarUrl,
-  };
+  let name = anyReq.user?.displayName;
+  let avatar = anyReq.user?.avatarUrl;
+
+  // Fall back to database if session doesn't have profile info
+  if (!name || name === steamId) {
+    try {
+      const row = await db.queryOneAsync<{ name: string; avatar_url?: string }>(
+        'SELECT name, avatar_url FROM players WHERE id = ?', [steamId]
+      );
+      if (row) {
+        name = row.name || name;
+        avatar = row.avatar_url || avatar;
+      }
+    } catch { /* ignore */ }
+  }
+
+  return { steamId, name: name || steamId, avatar };
 }
 
-function requirePlayer(req: Request, res: Response): { steamId: string; name: string; avatar?: string } | null {
-  const player = getPlayerInfo(req);
+async function requirePlayer(req: Request, res: Response): Promise<{ steamId: string; name: string; avatar?: string } | null> {
+  const player = await getPlayerInfo(req);
   if (!player) {
     res.status(401).json({ success: false, error: 'Sign in with Steam to use lobbies' });
     return null;
@@ -198,7 +212,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const { teamSize, format, mapPool, gameMode } = req.body;
     const lobby = await lobbyService.create(player.steamId, player.name, player.avatar, {
@@ -216,7 +230,7 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.post('/:id/join', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const lobby = await lobbyService.join(req.params.id, player.steamId, player.name, player.avatar);
     return res.json({ success: true, lobby });
@@ -228,7 +242,7 @@ router.post('/:id/join', async (req: Request, res: Response) => {
 
 router.post('/:id/leave', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const lobby = await lobbyService.leave(req.params.id, player.steamId);
     return res.json({ success: true, lobby });
@@ -240,7 +254,7 @@ router.post('/:id/leave', async (req: Request, res: Response) => {
 
 router.post('/:id/kick', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const { targetId } = req.body;
     const lobby = await lobbyService.kick(req.params.id, player.steamId, targetId);
@@ -253,7 +267,7 @@ router.post('/:id/kick', async (req: Request, res: Response) => {
 
 router.post('/:id/set-captain', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const { targetId, team } = req.body;
     const lobby = await lobbyService.setCaptain(req.params.id, player.steamId, targetId, team);
@@ -266,7 +280,7 @@ router.post('/:id/set-captain', async (req: Request, res: Response) => {
 
 router.post('/:id/start-draft', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const lobby = await lobbyService.startDraft(req.params.id, player.steamId);
     return res.json({ success: true, lobby });
@@ -278,7 +292,7 @@ router.post('/:id/start-draft', async (req: Request, res: Response) => {
 
 router.post('/:id/pick', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const { targetId } = req.body;
     const lobby = await lobbyService.pickPlayer(req.params.id, player.steamId, targetId);
@@ -291,7 +305,7 @@ router.post('/:id/pick', async (req: Request, res: Response) => {
 
 router.post('/:id/swap', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const { team } = req.body;
     const lobby = await lobbyService.swapTeam(req.params.id, player.steamId, team);
@@ -304,7 +318,7 @@ router.post('/:id/swap', async (req: Request, res: Response) => {
 
 router.post('/:id/start-veto', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const lobby = await lobbyService.startVeto(req.params.id, player.steamId);
     return res.json({ success: true, lobby });
@@ -316,7 +330,7 @@ router.post('/:id/start-veto', async (req: Request, res: Response) => {
 
 router.post('/:id/transfer-ownership', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const { targetId } = req.body;
     const lobby = await lobbyService.transferOwnership(req.params.id, player.steamId, targetId);
@@ -329,7 +343,7 @@ router.post('/:id/transfer-ownership', async (req: Request, res: Response) => {
 
 router.post('/:id/update-config', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const { gameMode, mapPool, format, teamSize } = req.body;
     const lobby = await lobbyService.updateConfig(req.params.id, player.steamId, { gameMode, mapPool, format, teamSize });
@@ -342,7 +356,7 @@ router.post('/:id/update-config', async (req: Request, res: Response) => {
 
 router.post('/:id/join-team', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const { team } = req.body;
     const lobby = await lobbyService.joinTeam(req.params.id, player.steamId, team);
@@ -355,7 +369,7 @@ router.post('/:id/join-team', async (req: Request, res: Response) => {
 
 router.post('/:id/create-match', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const baseUrl = await getWebhookBaseUrl(req);
     const { serverId } = req.body || {};
@@ -369,7 +383,7 @@ router.post('/:id/create-match', async (req: Request, res: Response) => {
 
 router.post('/:id/veto-action', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const { mapId, action } = req.body;
     if (!mapId || !action) return res.status(400).json({ success: false, error: 'mapId and action are required' });
@@ -383,7 +397,7 @@ router.post('/:id/veto-action', async (req: Request, res: Response) => {
 
 router.post('/:id/fill-bots', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const lobby = await lobbyService.fillWithBots(req.params.id, player.steamId);
     return res.json({ success: true, lobby });
@@ -395,7 +409,7 @@ router.post('/:id/fill-bots', async (req: Request, res: Response) => {
 
 router.post('/:id/auto-assign', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     const lobby = await lobbyService.autoAssignTeams(req.params.id, player.steamId);
     return res.json({ success: true, lobby });
@@ -407,7 +421,7 @@ router.post('/:id/auto-assign', async (req: Request, res: Response) => {
 
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    const player = requirePlayer(req, res);
+    const player = await requirePlayer(req, res);
     if (!player) return;
     await lobbyService.cancel(req.params.id, player.steamId);
     return res.json({ success: true });
