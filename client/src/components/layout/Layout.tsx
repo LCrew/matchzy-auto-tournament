@@ -46,6 +46,7 @@ import type { SettingsResponse } from '../../types/api.types';
 import { useIsDevelopment } from '../../hooks/useIsDevelopment';
 import { useTranslation } from 'react-i18next';
 import { SharedNavBar } from './SharedNavBar';
+import { useAuth } from '../../contexts/AuthContext';
 
 const drawerWidth = 240;
 
@@ -157,11 +158,13 @@ export default function Layout() {
   });
 
   const isDevelopment = useIsDevelopment();
+  const { isAuthenticated: isAdmin } = useAuth();
 
   // Page header configuration - maps routes to their titles and icons
   const pageHeaders: Record<string, { title: string; icon: React.ComponentType; color?: string }> =
     {
       '/': { title: t('layout.pageTitle.dashboard'), icon: DashboardIcon },
+      '/lobby': { title: 'Lobby', icon: SportsEsportsIcon },
       '/tournament': { title: t('layout.pageTitle.tournament'), icon: EmojiEventsIcon },
       '/bracket': { title: t('layout.pageTitle.bracket'), icon: AccountTreeIcon },
       '/matches': { title: t('layout.pageTitle.matches'), icon: SportsEsportsIcon },
@@ -185,28 +188,31 @@ export default function Layout() {
 
   // Group navigation items logically
   const mainNavItems = [
-    { label: t('nav.tournament'), path: '/tournament', icon: EmojiEventsIcon },
-    { label: t('nav.bracket'), path: '/bracket', icon: AccountTreeIcon },
-    { label: t('nav.matches'), path: '/matches', icon: SportsEsportsIcon },
+    { label: 'Lobby', path: '/lobby', icon: SportsEsportsIcon },
+    ...(isAdmin ? [
+      { label: t('nav.tournament'), path: '/tournament', icon: EmojiEventsIcon },
+      { label: t('nav.bracket'), path: '/bracket', icon: AccountTreeIcon },
+      { label: t('nav.matches'), path: '/matches', icon: SportsEsportsIcon },
+    ] : []),
   ];
 
-  const resourcesNavItems = [
+  const resourcesNavItems = isAdmin ? [
     { label: t('nav.teams'), path: '/teams', icon: GroupsIcon },
     { label: t('nav.players'), path: '/players', icon: PersonIcon },
     { label: t('nav.servers'), path: '/servers', icon: StorageIcon },
     { label: t('nav.maps'), path: '/maps', icon: MapIcon },
-  ];
+  ] : [];
 
-  const configurationNavItems = [
+  const configurationNavItems = isAdmin ? [
     { label: t('nav.templates'), path: '/templates', icon: DescriptionIcon },
     { label: t('nav.eloTemplates'), path: '/elo-templates', icon: TrendingUpIcon },
     { label: t('nav.settings'), path: '/settings', icon: SettingsIcon },
-  ];
+  ] : [];
 
-  const systemNavItems = [
+  const systemNavItems = isAdmin ? [
     { label: t('nav.adminTools'), path: '/admin', icon: CampaignIcon },
     ...(isDevelopment ? [{ label: t('nav.devTools'), path: '/dev', icon: BuildIcon }] : []),
-  ];
+  ] : [];
 
   React.useEffect(() => {
     let isMounted = true;
@@ -514,7 +520,7 @@ export default function Layout() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box component="img" src="/icon.svg" alt="Logo" sx={{ width: 32, height: 32 }} />
+              <Box component="img" src="/nice.png" alt="Logo" sx={{ width: 32, height: 32 }} />
               <Typography variant="body2" noWrap component="div" sx={{ fontWeight: 600 }}>
                 Matchzy Auto Tournament
               </Typography>
@@ -584,54 +590,66 @@ export default function Layout() {
           </ListSubheader>
           {renderNavItems(mainNavItems)}
         </List>
-        <Divider />
-        <List>
-          <ListSubheader
-            sx={{
-              fontSize: 12,
-              fontWeight: 600,
-              height: 36,
-              px: 2.5,
-              py: 0,
-              lineHeight: '36px',
-            }}
-          >
-            {t('nav.resourcesSection')}
-          </ListSubheader>
-          {renderNavItems(resourcesNavItems)}
-        </List>
-        <Divider />
-        <List>
-          <ListSubheader
-            sx={{
-              fontSize: 12,
-              fontWeight: 600,
-              height: 36,
-              px: 2.5,
-              py: 0,
-              lineHeight: '36px',
-            }}
-          >
-            {t('nav.configurationSection')}
-          </ListSubheader>
-          {renderNavItems(configurationNavItems)}
-        </List>
-        <Divider />
-        <List>
-          <ListSubheader
-            sx={{
-              fontSize: 12,
-              fontWeight: 600,
-              height: 36,
-              px: 2.5,
-              py: 0,
-              lineHeight: '36px',
-            }}
-          >
-            {t('nav.systemSection')}
-          </ListSubheader>
-          {renderNavItems(systemNavItems)}
-        </List>
+        {resourcesNavItems.length > 0 && (
+          <>
+            <Divider />
+            <List>
+              <ListSubheader
+                sx={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  height: 36,
+                  px: 2.5,
+                  py: 0,
+                  lineHeight: '36px',
+                }}
+              >
+                {t('nav.resourcesSection')}
+              </ListSubheader>
+              {renderNavItems(resourcesNavItems)}
+            </List>
+          </>
+        )}
+        {configurationNavItems.length > 0 && (
+          <>
+            <Divider />
+            <List>
+              <ListSubheader
+                sx={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  height: 36,
+                  px: 2.5,
+                  py: 0,
+                  lineHeight: '36px',
+                }}
+              >
+                {t('nav.configurationSection')}
+              </ListSubheader>
+              {renderNavItems(configurationNavItems)}
+            </List>
+          </>
+        )}
+        {systemNavItems.length > 0 && (
+          <>
+            <Divider />
+            <List>
+              <ListSubheader
+                sx={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  height: 36,
+                  px: 2.5,
+                  py: 0,
+                  lineHeight: '36px',
+                }}
+              >
+                {t('nav.systemSection')}
+              </ListSubheader>
+              {renderNavItems(systemNavItems)}
+            </List>
+          </>
+        )}
         <Divider />
         <List>
           <ListItem disablePadding sx={{ display: 'block' }}>
@@ -754,60 +772,72 @@ export default function Layout() {
           )}
           {renderNavItems(mainNavItems)}
         </List>
-        <Divider />
-        <List>
-          {open && (
-            <ListSubheader
-              sx={{
-                fontSize: 12,
-                fontWeight: 600,
-                height: 36,
-                px: 2.5,
-                py: 0,
-                lineHeight: '36px',
-              }}
-            >
-              {t('nav.resourcesSection')}
-            </ListSubheader>
-          )}
-          {renderNavItems(resourcesNavItems)}
-        </List>
-        <Divider />
-        <List>
-          {open && (
-            <ListSubheader
-              sx={{
-                fontSize: 12,
-                fontWeight: 600,
-                height: 36,
-                px: 2.5,
-                py: 0,
-                lineHeight: '36px',
-              }}
-            >
-              {t('nav.configurationSection')}
-            </ListSubheader>
-          )}
-          {renderNavItems(configurationNavItems)}
-        </List>
-        <Divider />
-        <List>
-          {open && (
-            <ListSubheader
-              sx={{
-                fontSize: 12,
-                fontWeight: 600,
-                height: 36,
-                px: 2.5,
-                py: 0,
-                lineHeight: '36px',
-              }}
-            >
-              {t('nav.systemSection')}
-            </ListSubheader>
-          )}
-          {renderNavItems(systemNavItems)}
-        </List>
+        {resourcesNavItems.length > 0 && (
+          <>
+            <Divider />
+            <List>
+              {open && (
+                <ListSubheader
+                  sx={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    height: 36,
+                    px: 2.5,
+                    py: 0,
+                    lineHeight: '36px',
+                  }}
+                >
+                  {t('nav.resourcesSection')}
+                </ListSubheader>
+              )}
+              {renderNavItems(resourcesNavItems)}
+            </List>
+          </>
+        )}
+        {configurationNavItems.length > 0 && (
+          <>
+            <Divider />
+            <List>
+              {open && (
+                <ListSubheader
+                  sx={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    height: 36,
+                    px: 2.5,
+                    py: 0,
+                    lineHeight: '36px',
+                  }}
+                >
+                  {t('nav.configurationSection')}
+                </ListSubheader>
+              )}
+              {renderNavItems(configurationNavItems)}
+            </List>
+          </>
+        )}
+        {systemNavItems.length > 0 && (
+          <>
+            <Divider />
+            <List>
+              {open && (
+                <ListSubheader
+                  sx={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    height: 36,
+                    px: 2.5,
+                    py: 0,
+                    lineHeight: '36px',
+                  }}
+                >
+                  {t('nav.systemSection')}
+                </ListSubheader>
+              )}
+              {renderNavItems(systemNavItems)}
+            </List>
+          </>
+        )}
         <Divider />
         <List>
           <ListItem disablePadding sx={{ display: 'block' }}>

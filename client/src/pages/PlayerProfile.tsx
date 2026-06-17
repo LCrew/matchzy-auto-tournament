@@ -213,6 +213,26 @@ function normalizeMatchForPlayerView(rawMatch: TeamMatchInfo, steamId: string): 
   };
 }
 
+function getFaceitColor(level: number): string {
+  const colors: Record<number, string> = {
+    1: '#EEE', 2: '#1CE400', 3: '#1CE400',
+    4: '#FFC800', 5: '#FFC800', 6: '#FFC800',
+    7: '#FF6309', 8: '#FF6309',
+    9: '#EE4B2B', 10: '#EE4B2B',
+  };
+  return colors[level] || '#666';
+}
+
+function getFaceitBorderColor(level: number): string {
+  const colors: Record<number, string> = {
+    1: '#999', 2: '#15A800', 3: '#15A800',
+    4: '#CC9F00', 5: '#CC9F00', 6: '#CC9F00',
+    7: '#CC4F07', 8: '#CC4F07',
+    9: '#BB3A22', 10: '#BB3A22',
+  };
+  return colors[level] || '#444';
+}
+
 export default function PlayerProfile() {
   type AssignedTeam = {
     id: string;
@@ -232,6 +252,7 @@ export default function PlayerProfile() {
   const [assignedTeam, setAssignedTeam] = useState<AssignedTeam | null>(null);
   const [currentTournamentStatus, setCurrentTournamentStatus] = useState<string>('setup');
   const [selectedMatch, setSelectedMatch] = useState<MatchHistoryEntry | null>(null);
+  const [faceit, setFaceit] = useState<{ faceitElo: number; skillLevel: number; nickname: string } | null>(null);
   const [allocationCountdown, setAllocationCountdown] = useState<{
     nextAllocationInSeconds: number | null;
     gracePeriodSeconds: number;
@@ -355,6 +376,13 @@ export default function PlayerProfile() {
 
       setPlayer(summaryResponse.player);
       document.title = `${summaryResponse.player.name} - Player Profile`;
+
+      // Fetch FACEIT data
+      try {
+        const faceitRes = await api.fetch(`/api/lobbies/faceit/players?steamIds=${steamId}`);
+        if (faceitRes.players?.[steamId]) setFaceit(faceitRes.players[steamId]);
+        else setFaceit(null);
+      } catch { setFaceit(null); }
 
       // Resolve team membership (used for "My Team" even when player has no current match)
       try {
@@ -982,6 +1010,22 @@ export default function PlayerProfile() {
                           sx={{ fontWeight: 600, fontSize: '1rem' }}
                         />
                       </Tooltip>
+                      {faceit && (
+                        <Tooltip title={`FACEIT: ${faceit.nickname} · ELO ${faceit.faceitElo}`}>
+                          <Chip
+                            label={<><strong>Lvl {faceit.skillLevel}</strong> · {faceit.faceitElo}</>}
+                            sx={{
+                              fontFamily: 'monospace',
+                              fontWeight: 600,
+                              fontSize: '0.9rem',
+                              bgcolor: getFaceitColor(faceit.skillLevel),
+                              color: faceit.skillLevel === 1 ? '#333' : '#fff',
+                              border: '2px solid',
+                              borderColor: getFaceitBorderColor(faceit.skillLevel),
+                            }}
+                          />
+                        </Tooltip>
+                      )}
                       {latestTournamentId && (
                         <Button
                           variant="outlined"

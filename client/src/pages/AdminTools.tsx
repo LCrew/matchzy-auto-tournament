@@ -39,9 +39,16 @@ interface Server {
   enabled: boolean;
 }
 
+interface Player {
+  id: string;
+  name: string;
+  isAdmin?: boolean;
+}
+
 const AdminTools: React.FC = () => {
   const { setHeaderActions } = usePageHeader();
   const [servers, setServers] = useState<Server[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string>('all');
   const [loadingServers, setLoadingServers] = useState(true);
   const [commandInputs, setCommandInputs] = useState<Record<string, string>>({});
@@ -78,9 +85,17 @@ const AdminTools: React.FC = () => {
     }
   }, []);
 
+  const loadPlayers = React.useCallback(async () => {
+    try {
+      const response = await api.get<{ players: Player[] }>('/api/players');
+      setPlayers(response.players || []);
+    } catch { /* ignore */ }
+  }, []);
+
   React.useEffect(() => {
     loadServers();
-  }, [loadServers]);
+    loadPlayers();
+  }, [loadServers, loadPlayers]);
 
   // Set dynamic page title
   React.useEffect(() => {
@@ -120,7 +135,18 @@ const AdminTools: React.FC = () => {
       return;
     }
 
-    await executeCommand(serverIds, command.command, value);
+    let finalCommand = command.command;
+    let finalValue = value;
+
+    if (command.id === 'add-admin' && value) {
+      finalCommand = 'custom';
+      finalValue = `css_addadmin ${value.trim()} @css/root`;
+    } else if (command.id === 'remove-admin' && value) {
+      finalCommand = 'custom';
+      finalValue = `css_removeadmin ${value.trim()}`;
+    }
+
+    await executeCommand(serverIds, finalCommand, finalValue);
 
     // Clear input after execution
     if (command.requiresInput) {
@@ -173,7 +199,22 @@ const AdminTools: React.FC = () => {
           </Typography>
         )}
 
-        {command.requiresInput && (
+        {command.requiresInput && (command.id === 'add-admin' || command.id === 'remove-admin') ? (
+          <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+            <InputLabel>Player</InputLabel>
+            <Select
+              value={commandInputs[command.id] || ''}
+              label="Player"
+              onChange={(e) => handleInputChange(command.id, e.target.value)}
+            >
+              {players.map((p) => (
+                <MenuItem key={p.id} value={p.id}>
+                  {p.name} {p.isAdmin ? '(admin)' : ''} — {p.id}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        ) : command.requiresInput ? (
           <TextField
             fullWidth
             size="small"
@@ -183,7 +224,7 @@ const AdminTools: React.FC = () => {
             onChange={(e) => handleInputChange(command.id, e.target.value)}
             sx={{ mb: 1 }}
           />
-        )}
+        ) : null}
 
         <Button
           fullWidth

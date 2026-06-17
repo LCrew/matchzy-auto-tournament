@@ -3,10 +3,13 @@ import {
   Avatar,
   Box,
   Button,
+  Chip,
   IconButton,
   Menu,
   MenuItem,
+  Tooltip,
 } from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import MenuIcon from '@mui/icons-material/Menu';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
@@ -15,6 +18,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { useCurrentMatchStatus } from '../../hooks/useCurrentMatchStatus';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
+import { useIsDevelopment } from '../../hooks/useIsDevelopment';
 import { PlayerAvatar } from '../player/PlayerAvatar';
 import { generateAvatarDataUrl } from '../../generation/avatar';
 import { api } from '../../utils/api';
@@ -57,6 +61,8 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
     logout,
     adminProfileName,
     adminProfileAvatarUrl,
+    viewAsUser,
+    setViewAsUser,
   } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -64,6 +70,7 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
     useCurrentMatchStatus(playerSteamId ?? null);
   const { showSnackbar } = useSnackbar();
 
+  const isDev = useIsDevelopment();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const prevMatchRef = React.useRef<{ status: string; label: string | null } | null>(null);
   const [playerAvatarUrl, setPlayerAvatarUrl] = React.useState<string | undefined>(undefined);
@@ -210,7 +217,7 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
         >
           <Box
             component="img"
-            src="/icon.svg"
+            src="/nice.png"
             alt="Matchzy Auto Tournament"
             sx={{ height: 32 }}
           />
@@ -234,6 +241,17 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
             size="small"
           >
             {t('nav.leaderboard')}
+          </Button>
+          <Button
+            color="primary"
+            variant="outlined"
+            component={RouterLink}
+            to="/lobby"
+            size="small"
+            startIcon={<SportsEsportsIcon />}
+            sx={{ fontWeight: 600 }}
+          >
+            Lobby
           </Button>
         </Box>
       </Box>
@@ -261,6 +279,30 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
             </Button>
           ) : null}
         </Box>
+        {isDev && !viewAsUser && (
+          <Tooltip title="View site as a regular player (non-admin)">
+            <Chip
+              icon={<VisibilityIcon sx={{ fontSize: 16 }} />}
+              label="View as User"
+              size="small"
+              variant="outlined"
+              color="warning"
+              onClick={() => setViewAsUser(true)}
+              sx={{ cursor: 'pointer' }}
+            />
+          </Tooltip>
+        )}
+        {viewAsUser && (
+          <Chip
+            icon={<VisibilityIcon sx={{ fontSize: 16 }} />}
+            label="Viewing as User"
+            size="small"
+            color="warning"
+            onClick={() => setViewAsUser(false)}
+            onDelete={() => setViewAsUser(false)}
+            sx={{ cursor: 'pointer', fontWeight: 700 }}
+          />
+        )}
         <LanguageSwitcher />
 
         {needsSteamLink && (

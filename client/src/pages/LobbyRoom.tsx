@@ -1,0 +1,851 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Typography,
+  Avatar,
+  Stack,
+  Alert,
+  Divider,
+  IconButton,
+  Tooltip,
+  Paper,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { LobbyMatchPanel } from '../components/lobby/LobbyMatchPanel';
+import MapIcon from '@mui/icons-material/Map';
+import StarIcon from '@mui/icons-material/Star';
+import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import LogoutIcon from '@mui/icons-material/Logout';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import CheckIcon from '@mui/icons-material/Check';
+import { useParams, useNavigate } from 'react-router-dom';
+import { api } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
+import { useIsDevelopment } from '../hooks/useIsDevelopment';
+import type { Lobby, LobbyPlayer, GameMode } from '../types/lobby.types';
+import io from 'socket.io-client';
+
+interface MapItem {
+  id: string;
+  displayName: string;
+  imageUrl: string | null;
+}
+
+interface MapPool {
+  id: number;
+  name: string;
+  maps: string[];
+  isDefault?: boolean;
+}
+
+function getFaceitColor(level: number): string {
+  const colors: Record<number, string> = {
+    1: '#EEE', 2: '#1CE400', 3: '#1CE400',
+    4: '#FFC800', 5: '#FFC800', 6: '#FFC800',
+    7: '#FF6309', 8: '#FF6309',
+    9: '#EE4B2B', 10: '#EE4B2B',
+  };
+  return colors[level] || '#666';
+}
+
+function getFaceitBorderColor(level: number): string {
+  const colors: Record<number, string> = {
+    1: '#999', 2: '#15A800', 3: '#15A800',
+    4: '#CC9F00', 5: '#CC9F00', 6: '#CC9F00',
+    7: '#CC4F07', 8: '#CC4F07',
+    9: '#BB3A22', 10: '#BB3A22',
+  };
+  return colors[level] || '#444';
+}
+
+export default function LobbyRoom() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { playerSteamId } = useAuth();
+  const [lobby, setLobby] = useState<Lobby | null>(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [executing, setExecuting] = useState(false);
+  const [forceServerId, setForceServerId] = useState('');
+  const [confirmAction, setConfirmAction] = useState<{ type: string; title: string; message: string } | null>(null);
+  const [debugJson, setDebugJson] = useState<string | null>(null);
+  const isDev = useIsDevelopment();
+
+  const [gameModes, setGameModes] = useState<GameMode[]>([]);
+  const [allMaps, setAllMaps] = useState<MapItem[]>([]);
+  const [mapPools, setMapPools] = useState<MapPool[]>([]);
+  const [servers, setServers] = useState<{ id: string; name: string; host: string; port: number; status: string }[]>([]);
+  const [faceitData, setFaceitData] = useState<Record<string, { faceitElo: number; skillLevel: number; nickname: string }>>({});
+  const [vetoEnabled, setVetoEnabled] = useState(true);
+
+  const loadLobby = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await api.fetch(`/api/lobbies/${id}`);
+      setLobby(res.lobby);
+    } catch {
+      setError('Failed to load lobby');
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadLobby();
+    const socket = io({ transports: ['websocket'] });
+    socket.on(`lobby:update:${id}`, (updated: Lobby) => setLobby(updated));
+    socket.on('lobby:deleted', (data: { id: string }) => {
+      if (data.id === id) {
+        setError('Lobby was cancelled');
+        setTimeout(() => navigate('/lobby'), 2000);
+      }
+    });
+    return () => { socket.disconnect(); };
+  }, [id, navigate, loadLobby]);
+
+  useEffect(() => {
+    const load = async () => {
+      const [mapsRes, modesRes, poolsRes, serversRes] = await Promise.allSettled([
+        api.fetch('/api/lobbies/maps'),
+        api.fetch('/api/lobbies/game-modes'),
+        api.fetch('/api/lobbies/map-pools'),
+        api.fetch('/api/lobbies/servers/list'),
+      ]);
+      if (mapsRes.status === 'fulfilled') setAllMaps(mapsRes.value.maps || []);
+      if (modesRes.status === 'fulfilled') setGameModes(modesRes.value.gameModes || []);
+      if (poolsRes.status === 'fulfilled') setMapPools(poolsRes.value.mapPools || []);
+      if (serversRes.status === 'fulfilled') setServers(serversRes.value.servers || []);
+    };
+    load();
+  }, []);
+
+  // Fetch FACEIT data when players change
+  useEffect(() => {
+    if (!lobby) return;
+    const steamIds = lobby.state.players
+      .filter((p) => !p.steamId.startsWith('BOT_'))
+      .map((p) => p.steamId);
+    if (steamIds.length === 0) return;
+    const key = steamIds.sort().join(',');
+    api.fetch(`/api/lobbies/faceit/players?steamIds=${key}`)
+      .then((res) => { if (res.players) setFaceitData(res.players); })
+      .catch(() => { /* ignore */ });
+  }, [lobby?.state.players.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!lobby) {
+    return (
+      <Box p={4}>
+        {error ? <Alert severity="error">{error}</Alert> : <Typography>Loading...</Typography>}
+      </Box>
+    );
+  }
+
+  const me = lobby.state.players.find((p) => p.steamId === playerSteamId);
+  const isCreator = lobby.createdBy === playerSteamId;
+  const isMyPickTurn = lobby.status === 'picking' && lobby.state.pickTurn &&
+    lobby.state.captains[lobby.state.pickTurn] === playerSteamId;
+  const myCaptainTeam =
+    lobby.state.captains.team1 === playerSteamId ? 'team1' :
+    lobby.state.captains.team2 === playerSteamId ? 'team2' : null;
+  const veto = lobby.state.veto;
+  const isMyVetoTurn = lobby.status === 'veto' && veto && !veto.completed && myCaptainTeam === veto.currentTurn;
+
+  const team1Players = lobby.state.players.filter((p) => p.team === 'team1');
+  const team2Players = lobby.state.players.filter((p) => p.team === 'team2');
+  const unassigned = lobby.state.players.filter((p) => p.team === 'unassigned');
+  const maxPlayers = lobby.teamSize * 2;
+
+  const act = async (action: string, body?: Record<string, unknown>) => {
+    setExecuting(true);
+    setError('');
+    try {
+      const endpoint = `/api/lobbies/${id}/${action}`;
+      const res = await api.fetch(endpoint, {
+        method: action === 'cancel' ? 'DELETE' : 'POST',
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (res.lobby) setLobby(res.lobby);
+      return res;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Action failed';
+      setError(msg);
+      return null;
+    } finally {
+      setExecuting(false);
+    }
+  };
+
+  const handleJoinTeam = (team: 'team1' | 'team2' | 'unassigned') => act('join-team', { team });
+  const handleSetCaptain = (targetId: string, team: 'team1' | 'team2') =>
+    act('set-captain', { targetId, team });
+  const handleKick = (targetId: string) => act('kick', { targetId });
+  const handlePick = (targetId: string) => act('pick', { targetId });
+  const handleTransferOwnership = (targetId: string) => act('transfer-ownership', { targetId });
+  const handleStartDraft = () => act('start-draft');
+  const handleStartVeto = () => act('start-veto');
+  const handleVetoAction = (mapId: string) => {
+    if (!veto) return;
+    act('veto-action', { mapId, action: veto.currentAction });
+  };
+  const handleLeave = () => setConfirmAction({ type: 'leave', title: 'Leave Lobby', message: 'Are you sure you want to leave this lobby?' });
+  const handleCancel = () => setConfirmAction({ type: 'cancel', title: 'Cancel Lobby', message: 'Are you sure you want to cancel this lobby? If a match is in progress, it will be force-cancelled on the server.' });
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+    if (confirmAction.type === 'leave') {
+      await act('leave');
+      navigate('/lobby');
+    } else if (confirmAction.type === 'cancel') {
+      // If a match is running, force-cancel it on the server first
+      if (lobby?.matchSlug) {
+        try {
+          await api.fetch(`/api/matches/${lobby.matchSlug}/force-cancel`, { method: 'POST' });
+        } catch { /* best effort */ }
+      }
+      await api.fetch(`/api/lobbies/${id}`, { method: 'DELETE' });
+      navigate('/lobby');
+    }
+    setConfirmAction(null);
+  };
+  const handleUpdateConfig = (config: Record<string, unknown>) => act('update-config', config);
+
+  const getMapName = (mapId: string) => allMaps.find((m) => m.id === mapId)?.displayName || mapId;
+
+  const renderPlayer = (player: LobbyPlayer) => {
+    const isPickable = lobby.status === 'picking' && player.team === 'unassigned' && isMyPickTurn;
+    const isHost = player.steamId === lobby.createdBy;
+
+    return (
+      <Paper
+        key={player.steamId}
+        sx={{
+          p: 1.5, display: 'flex', alignItems: 'center', gap: 1.5,
+          border: '1px solid',
+          borderColor: isPickable ? 'primary.main' : 'divider',
+          bgcolor: isPickable ? 'rgba(255, 122, 26, 0.06)' : 'background.paper',
+          cursor: isPickable ? 'pointer' : 'default',
+          transition: 'all 0.15s',
+          '&:hover': isPickable ? { borderColor: 'primary.light', transform: 'scale(1.01)' } : {},
+        }}
+        onClick={isPickable ? () => handlePick(player.steamId) : undefined}
+      >
+        <Avatar src={player.avatar} alt={player.name} sx={{ width: 36, height: 36 }}>
+          {player.name[0]}
+        </Avatar>
+        <Box flex={1} minWidth={0}>
+          <Typography variant="body2" fontWeight={600} noWrap>{player.name}</Typography>
+        </Box>
+        {faceitData[player.steamId] && (
+          <Chip
+            label={<><strong>Lvl {faceitData[player.steamId].skillLevel}</strong> · {faceitData[player.steamId].faceitElo}</>}
+            size="small"
+            sx={{
+              mr: 0.5,
+              fontFamily: 'monospace',
+              fontWeight: 600,
+              fontSize: '0.7rem',
+              bgcolor: getFaceitColor(faceitData[player.steamId].skillLevel),
+              color: faceitData[player.steamId].skillLevel === 1 ? '#333' : '#fff',
+              border: '2px solid',
+              borderColor: getFaceitBorderColor(faceitData[player.steamId].skillLevel),
+            }}
+          />
+        )}
+        {player.isCaptain && <Chip icon={<StarIcon sx={{ fontSize: 14 }} />} label="C" size="small" color="warning" variant="outlined" sx={{ minWidth: 0, '& .MuiChip-label': { px: 0.5 } }} />}
+        {isHost && <Chip label="Host" size="small" variant="outlined" />}
+        {isCreator && !isHost && player.team === 'unassigned' && lobby.status === 'waiting' && (
+          <Tooltip title="Transfer host">
+            <Button size="small" variant="outlined" color="warning" onClick={(e) => { e.stopPropagation(); handleTransferOwnership(player.steamId); }} sx={{ fontSize: '0.7rem', py: 0.25 }}>
+              Transfer Host
+            </Button>
+          </Tooltip>
+        )}
+        {isCreator && player.steamId !== playerSteamId && lobby.status === 'waiting' && (
+          <Box display="flex" gap={0.5}>
+            {!player.isCaptain && (
+              <>
+                <Tooltip title="Set as Team 1 Captain">
+                  <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleSetCaptain(player.steamId, 'team1'); }}>
+                    <StarIcon fontSize="small" sx={{ color: '#5B9BD5' }} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Set as Team 2 Captain">
+                  <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleSetCaptain(player.steamId, 'team2'); }}>
+                    <StarIcon fontSize="small" sx={{ color: '#FF6B57' }} />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
+            <Tooltip title="Kick">
+              <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleKick(player.steamId); }}>
+                <PersonRemoveIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
+      </Paper>
+    );
+  };
+
+  const TeamColumn = ({ team, players, color }: { team: 'team1' | 'team2'; players: LobbyPlayer[]; color: string }) => (
+    <Box flex={1}>
+      <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+        <Box sx={{ width: 4, height: 24, borderRadius: 1, bgcolor: color }} />
+        <Typography variant="h6" fontWeight={700}>{team === 'team1' ? 'Team 1' : 'Team 2'}</Typography>
+        <Chip label={`${players.length}/${lobby.teamSize}`} size="small" variant="outlined" />
+        {lobby.status === 'picking' && lobby.state.pickTurn === team && (
+          <Chip label="Picking..." color="warning" size="small" sx={{ animation: 'pulse 1.5s infinite' }} />
+        )}
+      </Box>
+      <Stack spacing={1}>
+        {players.map((p) => renderPlayer(p))}
+        {players.length === 0 && (
+          <Typography variant="body2" color="text.disabled" sx={{ py: 2, textAlign: 'center' }}>No players yet</Typography>
+        )}
+      </Stack>
+      {lobby.status === 'waiting' && players.length < lobby.teamSize && (
+        <Button fullWidth variant="outlined" startIcon={<SwapHorizIcon />} onClick={() => handleJoinTeam(team)} sx={{ mt: 1.5 }}>
+          Join {team === 'team1' ? 'Team 1' : 'Team 2'}
+        </Button>
+      )}
+    </Box>
+  );
+
+  return (
+    <Box>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/lobby')} sx={{ mb: 2 }}>
+        Back to Lobbies
+      </Button>
+
+      {error && <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" onClose={() => setSuccess('')} sx={{ mb: 2 }}>{success}</Alert>}
+
+      {/* Header */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Typography variant="h5" fontWeight={700}>
+                  {lobby.teamSize}v{lobby.teamSize} {lobby.format.toUpperCase()}
+                </Typography>
+                <Chip label={lobby.gameMode} size="small" variant="outlined" />
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                {lobby.state.players.length}/{maxPlayers} players · {lobby.mapPool.length} maps
+              </Typography>
+            </Box>
+            <Chip
+              label={STATUS_LABELS[lobby.status] || lobby.status}
+              color={STATUS_COLORS[lobby.status] || 'default'}
+            />
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Picking phase banner */}
+      {lobby.status === 'picking' && (
+        <Alert severity={isMyPickTurn ? 'warning' : 'info'} sx={{ mb: 3, fontWeight: isMyPickTurn ? 700 : 400 }}>
+          {isMyPickTurn
+            ? 'Your turn to pick a player! Click on a player from the pool below.'
+            : `Waiting for ${lobby.state.pickTurn === 'team1' ? 'Team 1' : 'Team 2'} captain to pick...`}
+        </Alert>
+      )}
+
+      {/* Teams */}
+      <Box display="flex" gap={3} mb={3} flexDirection={{ xs: 'column', md: 'row' }}>
+        <TeamColumn team="team1" players={team1Players} color="#5B9BD5" />
+        <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+        <Divider sx={{ display: { xs: 'block', md: 'none' } }} />
+        <TeamColumn team="team2" players={team2Players} color="#FF6B57" />
+      </Box>
+
+      {/* Unassigned players pool */}
+      {/* Spectators */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" fontWeight={600} gutterBottom>
+            {lobby.status === 'picking' ? 'Available Players' : 'Spectators'}
+            {unassigned.length > 0 && (
+              <Chip label={unassigned.length} size="small" sx={{ ml: 1, verticalAlign: 'middle' }} />
+            )}
+          </Typography>
+          {unassigned.length > 0 ? (
+            <Stack spacing={1}>{unassigned.map((p) => renderPlayer(p))}</Stack>
+          ) : (
+            <Typography variant="body2" color="text.disabled">No spectators</Typography>
+          )}
+          {lobby.status === 'waiting' && (
+            <Box sx={{ mt: 1.5, display: 'flex', gap: 1 }}>
+              {me && me.team !== 'unassigned' && !me.isCaptain && (
+                <Button variant="outlined" size="small" onClick={() => handleJoinTeam('unassigned')}>
+                  Move to Spectators
+                </Button>
+              )}
+              {!me && (
+                <Button variant="outlined" size="small" onClick={() => handleJoinTeam('unassigned')}>
+                  Join as Spectator
+                </Button>
+              )}
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Map Veto */}
+      {lobby.status === 'veto' && veto && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" fontWeight={700} gutterBottom>Map Veto</Typography>
+            {!veto.completed && (
+              <Alert severity={isMyVetoTurn ? 'warning' : 'info'} sx={{ mb: 2, fontWeight: isMyVetoTurn ? 700 : 400 }}>
+                {isMyVetoTurn
+                  ? `Your turn to ${veto.currentAction} a map! Click a map below.`
+                  : `Waiting for ${veto.currentTurn === 'team1' ? 'Team 1' : 'Team 2'} captain to ${veto.currentAction}...`}
+              </Alert>
+            )}
+            {veto.completed && (
+              <Alert severity="success" sx={{ mb: 2 }}>Map veto complete! Selected: {veto.pickedMaps.map(getMapName).join(', ')}</Alert>
+            )}
+            {veto.actions.length > 0 && (
+              <Box sx={{ mb: 2 }}>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {veto.actions.map((a, i) => (
+                    <Chip key={i} label={`${a.team === 'team1' ? 'T1' : 'T2'} ${a.action}: ${getMapName(a.map)}`} size="small" color={a.action === 'ban' ? 'error' : 'success'} variant="outlined" />
+                  ))}
+                </Stack>
+              </Box>
+            )}
+            {!veto.completed && veto.availableMaps.length > 0 && (
+              <Box display="flex" flexWrap="wrap" gap={1.5}>
+                {veto.availableMaps.map((mapId) => (
+                  <Paper
+                    key={mapId}
+                    onClick={isMyVetoTurn ? () => handleVetoAction(mapId) : undefined}
+                    sx={{
+                      p: 2, minWidth: 140, textAlign: 'center',
+                      cursor: isMyVetoTurn ? 'pointer' : 'default',
+                      border: '2px solid',
+                      borderColor: isMyVetoTurn ? (veto.currentAction === 'ban' ? 'error.main' : 'success.main') : 'divider',
+                      bgcolor: isMyVetoTurn ? (veto.currentAction === 'ban' ? 'rgba(255,107,87,0.08)' : 'rgba(95,191,143,0.08)') : 'background.paper',
+                      transition: 'all 0.15s',
+                      '&:hover': isMyVetoTurn ? { transform: 'scale(1.03)', boxShadow: 2 } : {},
+                    }}
+                  >
+                    <Typography variant="body1" fontWeight={600}>{getMapName(mapId)}</Typography>
+                  </Paper>
+                ))}
+              </Box>
+            )}
+            {veto.pickedMaps.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" fontWeight={600} gutterBottom>Selected Maps</Typography>
+                <Stack direction="row" spacing={1}>
+                  {veto.pickedMaps.map((m) => (<Chip key={m} label={getMapName(m)} color="success" />))}
+                </Stack>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Match Panel — shown when server is allocated */}
+      {lobby.server && (
+        <Box sx={{ mb: 3 }}>
+          <LobbyMatchPanel
+            matchSlug={lobby.matchSlug}
+            team1Name="Team 1"
+            team2Name="Team 2"
+            team1Players={team1Players.map((p) => ({ steamId: p.steamId, name: p.name }))}
+            team2Players={team2Players.map((p) => ({ steamId: p.steamId, name: p.name }))}
+            maps={veto?.completed ? veto.pickedMaps : lobby.mapPool}
+            server={lobby.server}
+            getMapName={getMapName}
+          />
+        </Box>
+      )}
+
+      {/* Ready but no server yet */}
+      {lobby.status === 'ready' && !lobby.server && !lobby.matchSlug && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent sx={{ textAlign: 'center', py: 3 }}>
+            <Typography variant="h6" fontWeight={700} gutterBottom>
+              {veto?.completed ? 'Maps Selected' : 'Ready to Start'}
+            </Typography>
+            {veto?.completed && (
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {veto.pickedMaps.map(getMapName).join(', ')}
+              </Typography>
+            )}
+            {isCreator && (
+              <Stack spacing={2} alignItems="center">
+                <Box display="flex" gap={1} alignItems="center">
+                  <FormControl size="small" sx={{ minWidth: 260 }}>
+                    <InputLabel>Server</InputLabel>
+                    <Select value={forceServerId} label="Server" onChange={(e) => setForceServerId(e.target.value)}>
+                      <MenuItem value=""><em>Auto-select</em></MenuItem>
+                      {servers.map((s) => (
+                        <MenuItem key={s.id} value={s.id}>
+                          {s.name} ({s.host}:{s.port})
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    size="large"
+                    onClick={() => act('create-match', forceServerId ? { serverId: forceServerId } : undefined)}
+                    disabled={executing}
+                    sx={{ px: 4, fontWeight: 700, whiteSpace: 'nowrap' }}
+                  >
+                    {executing ? 'Creating...' : 'Start Match'}
+                  </Button>
+                </Box>
+              </Stack>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Match created, waiting for server */}
+      {lobby.matchSlug && !lobby.server && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent sx={{ textAlign: 'center', py: 3 }}>
+            <Typography variant="h6" fontWeight={700} gutterBottom>Allocating Server...</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Match created. Waiting for a server to become available.
+            </Typography>
+            {isCreator && (
+              <Box display="flex" gap={1} justifyContent="center" alignItems="center">
+                <FormControl size="small" sx={{ minWidth: 260 }}>
+                  <InputLabel>Server</InputLabel>
+                  <Select value={forceServerId} label="Server" onChange={(e) => setForceServerId(e.target.value)}>
+                    <MenuItem value="" disabled><em>Select a server</em></MenuItem>
+                    {servers.map((s) => (
+                      <MenuItem key={s.id} value={s.id}>
+                        {s.name} ({s.host}:{s.port})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Button
+                  variant="contained"
+                  color="warning"
+                  disabled={executing || !forceServerId}
+                  onClick={async () => {
+                    setExecuting(true);
+                    setError('');
+                    try {
+                      await api.fetch(`/api/matches/${lobby.matchSlug}/allocate`, {
+                        method: 'POST',
+                        body: JSON.stringify({ serverId: forceServerId }),
+                      });
+                      await loadLobby();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Failed to allocate');
+                    } finally {
+                      setExecuting(false);
+                    }
+                  }}
+                >
+                  Force Allocate
+                </Button>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Actions */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
+            {me && (
+              <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={handleLeave} disabled={executing}>Leave</Button>
+            )}
+            {isCreator && (
+              <Button variant="outlined" color="error" onClick={handleCancel} disabled={executing}>Cancel Lobby</Button>
+            )}
+            {isDev && isCreator && (
+              <>
+                <Divider orientation="vertical" flexItem />
+                <Chip label="DEV" size="small" color="warning" />
+                {lobby.status === 'waiting' && (
+                  <>
+                    <Button variant="outlined" color="warning" startIcon={<SmartToyIcon />} onClick={() => act('fill-bots')} disabled={executing || lobby.state.players.length >= maxPlayers}>Fill with Bots</Button>
+                    <Button variant="outlined" color="warning" startIcon={<AutoFixHighIcon />} onClick={() => act('auto-assign')} disabled={executing || unassigned.length === 0}>Auto-assign Teams</Button>
+                  </>
+                )}
+                {lobby.matchSlug && (
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    onClick={async () => {
+                      try {
+                        const res = await api.fetch(`/api/matches/${lobby.matchSlug}`);
+                        setDebugJson(JSON.stringify(res.match?.config || res.match || res, null, 2));
+                      } catch (err) {
+                        setDebugJson(String(err));
+                      }
+                    }}
+                  >
+                    View Match JSON
+                  </Button>
+                )}
+              </>
+            )}
+            <Box flex={1} />
+            {isCreator && lobby.status === 'waiting' && lobby.state.captains.team1 && lobby.state.captains.team2 && unassigned.length > 0 && (
+              <Button variant="contained" startIcon={<PlayArrowIcon />} onClick={handleStartDraft} disabled={executing}>Start Captain Draft</Button>
+            )}
+            {isCreator && lobby.status === 'waiting' && unassigned.length === 0 && team1Players.length > 0 && team2Players.length > 0 && (
+              <Button
+                variant="contained" color="success" size="large"
+                startIcon={vetoEnabled ? <PlayArrowIcon /> : <CheckIcon />}
+                onClick={handleStartVeto}
+                disabled={executing || (vetoEnabled && lobby.mapPool.length < 2)}
+                sx={{ px: 4, fontWeight: 700, fontSize: '1rem' }}
+              >
+                READY
+              </Button>
+            )}
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Debug JSON output */}
+      {debugJson && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+              <Typography variant="subtitle2" fontWeight={600}>Match Config JSON</Typography>
+              <Box display="flex" gap={1}>
+                <Button size="small" onClick={() => { navigator.clipboard.writeText(debugJson); setSuccess('Copied!'); setTimeout(() => setSuccess(''), 1500); }}>
+                  Copy
+                </Button>
+                <Button size="small" color="error" onClick={() => setDebugJson(null)}>Close</Button>
+              </Box>
+            </Box>
+            <Box
+              component="pre"
+              sx={{
+                bgcolor: 'background.default',
+                p: 2,
+                borderRadius: 1,
+                overflow: 'auto',
+                maxHeight: 500,
+                fontSize: '0.75rem',
+                fontFamily: 'monospace',
+                border: '1px solid',
+                borderColor: 'divider',
+                m: 0,
+              }}
+            >
+              {debugJson}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Match Configuration */}
+      {lobby.status === 'waiting' && (
+        <Card sx={{ ...(!isCreator ? { opacity: 0.6, pointerEvents: 'none' } : {}) }}>
+          <CardContent>
+            <Typography variant="h6" fontWeight={700} gutterBottom>
+              Match Configuration {!isCreator && <Chip label="Host only" size="small" variant="outlined" sx={{ ml: 1, verticalAlign: 'middle' }} />}
+            </Typography>
+            <Stack spacing={3}>
+              {/* Row: Game Mode + Format + Team Size */}
+              <Box display="flex" gap={2} flexWrap="wrap">
+                <FormControl size="small" sx={{ minWidth: 180, flex: 1 }}>
+                  <InputLabel>Game Mode</InputLabel>
+                  <Select value={lobby.gameMode} label="Game Mode" disabled={!isCreator}
+                    onChange={(e) => handleUpdateConfig({ gameMode: e.target.value })}>
+                    {gameModes.map((mode) => (
+                      <MenuItem key={mode.id} value={mode.id}>{mode.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <InputLabel>Format</InputLabel>
+                  <Select value={lobby.format} label="Format" disabled={!isCreator}
+                    onChange={(e) => handleUpdateConfig({ format: e.target.value })}>
+                    <MenuItem value="bo1">BO1</MenuItem>
+                    <MenuItem value="bo3">BO3</MenuItem>
+                    <MenuItem value="bo5">BO5</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <TextField
+                  label="Players per team"
+                  type="number"
+                  size="small"
+                  value={lobby.teamSize}
+                  disabled={!isCreator}
+                  onChange={(e) => {
+                    const v = Math.max(1, Math.min(10, Number(e.target.value)));
+                    handleUpdateConfig({ teamSize: v });
+                  }}
+                  slotProps={{ htmlInput: { min: 1, max: 10 } }}
+                  sx={{ width: 140 }}
+                />
+              </Box>
+
+              {/* Map Veto Toggle */}
+              <Box>
+                <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>Map Veto</Typography>
+                <ToggleButtonGroup
+                  value={vetoEnabled ? 'on' : 'off'}
+                  exclusive
+                  onChange={(_e, val) => {
+                    if (val === null) return;
+                    setVetoEnabled(val === 'on');
+                    if (val === 'off' && lobby.mapPool.length > 1) {
+                      handleUpdateConfig({ mapPool: [lobby.mapPool[0]] });
+                    }
+                  }}
+                  size="small"
+                  disabled={!isCreator}
+                >
+                  <ToggleButton value="on" sx={{ px: 3 }}>On</ToggleButton>
+                  <ToggleButton value="off" sx={{ px: 3 }}>Off</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
+              {/* Map Pool Presets (quick select) */}
+              {vetoEnabled && mapPools.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>Quick Select</Typography>
+                  <Box display="flex" gap={1} flexWrap="wrap">
+                    {mapPools.map((pool) => (
+                      <Chip
+                        key={pool.id}
+                        label={`${pool.name} (${(pool.maps || []).length})`}
+                        variant={JSON.stringify([...lobby.mapPool].sort()) === JSON.stringify([...(pool.maps || [])].sort()) ? 'filled' : 'outlined'}
+                        color={JSON.stringify([...lobby.mapPool].sort()) === JSON.stringify([...(pool.maps || [])].sort()) ? 'primary' : 'default'}
+                        onClick={isCreator ? () => handleUpdateConfig({ mapPool: pool.maps }) : undefined}
+                        sx={{ cursor: isCreator ? 'pointer' : 'default' }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Map Grid */}
+              <Box>
+                <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                  {vetoEnabled ? `Map Pool (${lobby.mapPool.length} selected)` : 'Select Map'}
+                </Typography>
+                <Box display="grid" gridTemplateColumns="repeat(auto-fill, minmax(140px, 1fr))" gap={1.5}>
+                  {allMaps.map((map) => {
+                    const isSelected = lobby.mapPool.includes(map.id);
+                    const imgUrl = map.imageUrl?.includes('cs2-server-manager')
+                      ? `https://raw.githubusercontent.com/sivert-io/cs2-server-manager/master/map_thumbnails/${map.id}.webp`
+                      : map.imageUrl || `https://raw.githubusercontent.com/sivert-io/cs2-server-manager/master/map_thumbnails/${map.id}.webp`;
+
+                    return (
+                      <Card
+                        key={map.id}
+                        onClick={isCreator ? () => {
+                          if (vetoEnabled) {
+                            const newPool = isSelected
+                              ? lobby.mapPool.filter((m) => m !== map.id)
+                              : [...lobby.mapPool, map.id];
+                            handleUpdateConfig({ mapPool: newPool });
+                          } else {
+                            handleUpdateConfig({ mapPool: [map.id] });
+                          }
+                        } : undefined}
+                        sx={{
+                          cursor: isCreator ? 'pointer' : 'default',
+                          border: '2px solid',
+                          borderColor: isSelected ? 'primary.main' : 'transparent',
+                          opacity: isSelected ? 1 : 0.6,
+                          transition: 'all 0.15s',
+                          '&:hover': isCreator ? { opacity: 1, transform: 'translateY(-2px)', boxShadow: 3 } : {},
+                        }}
+                      >
+                        <Box sx={{ height: 90, position: 'relative', overflow: 'hidden' }}>
+                          {imgUrl ? (
+                            <Box component="img" src={imgUrl} alt={map.displayName}
+                              sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          ) : (
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'text.disabled' }}>
+                              <MapIcon sx={{ fontSize: 36 }} />
+                            </Box>
+                          )}
+                          {isSelected && (
+                            <Box sx={{ position: 'absolute', top: 4, right: 4 }}>
+                              <CheckIcon sx={{ color: 'primary.main', fontSize: 20, bgcolor: 'rgba(0,0,0,0.6)', borderRadius: '50%', p: 0.25 }} />
+                            </Box>
+                          )}
+                        </Box>
+                        <Box sx={{ px: 1, py: 0.75, textAlign: 'center' }}>
+                          <Typography variant="caption" fontWeight={600} noWrap>{map.displayName}</Typography>
+                        </Box>
+                      </Card>
+                    );
+                  })}
+                </Box>
+              </Box>
+
+              {lobby.mapPool.length > 0 && (
+                <Typography variant="caption" color="text.secondary">
+                  Selected: {lobby.mapPool.map(getMapName).join(', ')}
+                </Typography>
+              )}
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
+      {/* Confirmation Dialog */}
+      <Dialog open={!!confirmAction} onClose={() => setConfirmAction(null)}>
+        <DialogTitle>{confirmAction?.title}</DialogTitle>
+        <DialogContent>
+          <Typography>{confirmAction?.message}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmAction(null)}>No, go back</Button>
+          <Button variant="contained" color="error" onClick={handleConfirmAction} disabled={executing}>
+            {executing ? 'Processing...' : 'Yes, confirm'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  waiting: 'Waiting for players',
+  picking: 'Captain draft',
+  veto: 'Map veto',
+  ready: 'Ready',
+  cancelled: 'Cancelled',
+};
+
+const STATUS_COLORS: Record<string, 'success' | 'warning' | 'info' | 'error' | 'default'> = {
+  waiting: 'success',
+  picking: 'warning',
+  veto: 'info',
+  ready: 'default',
+  cancelled: 'error',
+};

@@ -44,6 +44,7 @@ import eloTemplatesRoutes from './routes/eloTemplates';
 import testRoutes from './routes/test';
 import authRoutes from './routes/auth';
 import matchzyRoutes from './routes/matchzy';
+import lobbyRoutes from './routes/lobbies';
 import { initMatchZyVersionService } from './services/matchzyVersionService';
 import { recoverActiveMatches } from './services/matchRecoveryService';
 import { matchAllocationService } from './services/matchAllocationService';
@@ -383,6 +384,7 @@ app.use('/api/generation', generationRoutes); // Shared name/code generators (e.
 app.use('/api/test', testRoutes); // Test utilities (log markers, etc.)
 app.use('/api/auth', authRoutes); // Authentication (Steam, Keycloak, Discord)
 app.use('/api/matchzy', matchzyRoutes); // MatchZy Enhanced version info
+app.use('/api/lobbies', lobbyRoutes); // FaceIT-style match lobbies
 
 // Serve frontend at /app (built client lives under api/public)
 const publicPath = path.join(__dirname, '..', 'public');

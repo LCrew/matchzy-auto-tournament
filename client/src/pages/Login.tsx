@@ -149,7 +149,7 @@ export default function Login() {
                 }}
               >
                 <img
-                  src="/icon.svg"
+                  src="/nice.png"
                   alt="MatchZy Auto Tournament Logo"
                   style={{ width: '108px', height: '108px' }}
                 />
