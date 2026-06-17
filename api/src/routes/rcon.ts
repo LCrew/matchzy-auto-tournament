@@ -469,13 +469,15 @@ router.post('/reload-admins', async (req: Request, res: Response) => {
 /**
  * POST /api/rcon/manage-admin
  * Add or remove a CSS admin by editing admins.json directly, then reload.
+ * Matches the CounterStrikeSharp admins.json format with groups.
  */
 router.post('/manage-admin', async (req: Request, res: Response) => {
   try {
-    const { action, steamId, flags } = req.body as {
+    const { action, steamId, name, group } = req.body as {
       action: 'add' | 'remove';
       steamId: string;
-      flags?: string;
+      name?: string;
+      group?: string;
     };
 
     if (!action || !steamId) {
@@ -483,9 +485,9 @@ router.post('/manage-admin', async (req: Request, res: Response) => {
     }
 
     const adminsPath = process.env.CS2_ADMINS_JSON_PATH ||
-      '/game/csgo/addons/counterstrikesharp/configs/admins.json';
+      '/cs2-configs/admins.json';
 
-    let admins: Record<string, { identity: string; flags: string[] }> = {};
+    let admins: Record<string, { identity: string; groups: string[] }> = {};
     try {
       const raw = fs.readFileSync(adminsPath, 'utf-8');
       admins = JSON.parse(raw);
@@ -493,17 +495,24 @@ router.post('/manage-admin', async (req: Request, res: Response) => {
       if (action === 'add') {
         admins = {};
       } else {
-        return res.status(404).json({ success: false, error: 'admins.json not found' });
+        return res.status(404).json({ success: false, error: 'admins.json not found at ' + adminsPath });
       }
     }
 
     if (action === 'add') {
-      admins[steamId] = {
+      const label = name || steamId;
+      admins[label] = {
         identity: steamId,
-        flags: [flags || '@css/root'],
+        groups: [group || '#css/admin'],
       };
     } else {
-      delete admins[steamId];
+      // Find and remove by Steam ID (key might be a name, not the Steam ID)
+      const keyToRemove = Object.keys(admins).find(
+        (k) => admins[k].identity === steamId || k === steamId
+      );
+      if (keyToRemove) {
+        delete admins[keyToRemove];
+      }
     }
 
     const dir = path.dirname(adminsPath);
@@ -522,7 +531,7 @@ router.post('/manage-admin', async (req: Request, res: Response) => {
     return res.json({
       success: true,
       message: action === 'add'
-        ? `Admin ${steamId} added with ${flags || '@css/root'}`
+        ? `Admin ${name || steamId} added with ${group || '#css/admin'}`
         : `Admin ${steamId} removed`,
       admins,
     });
@@ -539,8 +548,8 @@ router.post('/manage-admin', async (req: Request, res: Response) => {
 router.get('/admins', async (_req: Request, res: Response) => {
   try {
     const adminsPath = process.env.CS2_ADMINS_JSON_PATH ||
-      '/game/csgo/addons/counterstrikesharp/configs/admins.json';
-    let admins: Record<string, { identity: string; flags: string[] }> = {};
+      '/cs2-configs/admins.json';
+    let admins: Record<string, { identity: string; groups: string[] }> = {};
     try {
       const raw = fs.readFileSync(adminsPath, 'utf-8');
       admins = JSON.parse(raw);

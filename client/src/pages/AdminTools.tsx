@@ -502,15 +502,14 @@ const AdminTools: React.FC = () => {
               </Select>
             </FormControl>
             <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>Permission</InputLabel>
+              <InputLabel>Group</InputLabel>
               <Select
-                value={commandInputs['admin-flags'] || '@css/root'}
-                label="Permission"
-                onChange={(e) => handleInputChange('admin-flags', e.target.value)}
+                value={commandInputs['admin-group'] || '#css/admin'}
+                label="Group"
+                onChange={(e) => handleInputChange('admin-group', e.target.value)}
               >
-                <MenuItem value="@css/root">@css/root (Full)</MenuItem>
-                <MenuItem value="@css/generic">@css/generic</MenuItem>
-                <MenuItem value="@css/changemap">@css/changemap</MenuItem>
+                <MenuItem value="#css/admin">#css/admin (Full)</MenuItem>
+                <MenuItem value="#css/moderator">#css/moderator</MenuItem>
               </Select>
             </FormControl>
             <Button
@@ -520,10 +519,12 @@ const AdminTools: React.FC = () => {
               disabled={executing || !commandInputs['admin-player']}
               onClick={async () => {
                 try {
+                  const selectedPlayer = players.find((p) => p.id === commandInputs['admin-player']);
                   const res = await api.post<{ success: boolean; message?: string; error?: string }>('/api/rcon/manage-admin', {
                     action: 'add',
                     steamId: commandInputs['admin-player'],
-                    flags: commandInputs['admin-flags'] || '@css/root',
+                    name: selectedPlayer?.name || commandInputs['admin-player'],
+                    group: commandInputs['admin-group'] || '#css/admin',
                   });
                   if (res.success) showSuccess(res.message || 'Admin added');
                   else showError(res.error || 'Failed');
