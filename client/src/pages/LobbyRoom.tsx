@@ -88,6 +88,7 @@ export default function LobbyRoom() {
   const [confirmAction, setConfirmAction] = useState<{ type: string; title: string; message: string } | null>(null);
   const [debugJson, setDebugJson] = useState<string | null>(null);
   const isDev = useIsDevelopment();
+  const { isRealAdmin } = useAuth();
 
   const [gameModes, setGameModes] = useState<GameMode[]>([]);
   const [allMaps, setAllMaps] = useState<MapItem[]>([]);
@@ -582,15 +583,17 @@ export default function LobbyRoom() {
             {isCreator && (
               <Button variant="outlined" color="error" onClick={handleCancel} disabled={executing}>Cancel Lobby</Button>
             )}
-            {isDev && isCreator && (
+            {/* Auto-assign — useful for all lobby creators */}
+            {isCreator && lobby.status === 'waiting' && unassigned.length > 0 && (
+              <Button variant="outlined" startIcon={<AutoFixHighIcon />} onClick={() => act('auto-assign')} disabled={executing}>Auto-assign Teams</Button>
+            )}
+            {/* Admin-only debug tools */}
+            {isDev && isRealAdmin && isCreator && (
               <>
                 <Divider orientation="vertical" flexItem />
                 <Chip label="DEV" size="small" color="warning" />
                 {lobby.status === 'waiting' && (
-                  <>
-                    <Button variant="outlined" color="warning" startIcon={<SmartToyIcon />} onClick={() => act('fill-bots')} disabled={executing || lobby.state.players.length >= maxPlayers}>Fill with Bots</Button>
-                    <Button variant="outlined" color="warning" startIcon={<AutoFixHighIcon />} onClick={() => act('auto-assign')} disabled={executing || unassigned.length === 0}>Auto-assign Teams</Button>
-                  </>
+                  <Button variant="outlined" color="warning" startIcon={<SmartToyIcon />} onClick={() => act('fill-bots')} disabled={executing || lobby.state.players.length >= maxPlayers}>Fill with Bots</Button>
                 )}
                 {lobby.matchSlug && (
                   <Button

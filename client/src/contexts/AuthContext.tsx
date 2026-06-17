@@ -87,6 +87,7 @@ interface AuthContextType {
    * When true, the admin sees the app as a regular player (isAuthenticated = false).
    * Toggle via the dev tools or navbar.
    */
+  isRealAdmin: boolean;
   viewAsUser: boolean;
   setViewAsUser: (value: boolean) => void;
 }
@@ -330,6 +331,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         adminProfileName,
         adminProfileAvatarUrl,
         hasPlayerRecord,
+        isRealAdmin: isAdmin,
         viewAsUser,
         setViewAsUser,
       }}

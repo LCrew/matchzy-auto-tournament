@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { Rcon } from 'dathost-rcon-client';
+import fs from 'fs';
+import path from 'path';
 import { rconService } from '../services/rconService';
 import { requireAuth } from '../middleware/auth';
 import { log } from '../utils/logger';
@@ -461,6 +463,92 @@ router.post('/reload-admins', async (req: Request, res: Response) => {
       success: false,
       error: 'Failed to reload admins',
     });
+  }
+});
+
+/**
+ * POST /api/rcon/manage-admin
+ * Add or remove a CSS admin by editing admins.json directly, then reload.
+ */
+router.post('/manage-admin', async (req: Request, res: Response) => {
+  try {
+    const { action, steamId, flags } = req.body as {
+      action: 'add' | 'remove';
+      steamId: string;
+      flags?: string;
+    };
+
+    if (!action || !steamId) {
+      return res.status(400).json({ success: false, error: 'action and steamId are required' });
+    }
+
+    const adminsPath = process.env.CS2_ADMINS_JSON_PATH ||
+      '/game/csgo/addons/counterstrikesharp/configs/admins.json';
+
+    let admins: Record<string, { identity: string; flags: string[] }> = {};
+    try {
+      const raw = fs.readFileSync(adminsPath, 'utf-8');
+      admins = JSON.parse(raw);
+    } catch {
+      if (action === 'add') {
+        admins = {};
+      } else {
+        return res.status(404).json({ success: false, error: 'admins.json not found' });
+      }
+    }
+
+    if (action === 'add') {
+      admins[steamId] = {
+        identity: steamId,
+        flags: [flags || '@css/root'],
+      };
+    } else {
+      delete admins[steamId];
+    }
+
+    const dir = path.dirname(adminsPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(adminsPath, JSON.stringify(admins, null, 2), 'utf-8');
+
+    // Reload admins on all enabled servers
+    try {
+      await rconService.broadcastCommand('css_reloadadmins');
+    } catch (err) {
+      log.warn('Failed to broadcast css_reloadadmins after admin change', err as Error);
+    }
+
+    return res.json({
+      success: true,
+      message: action === 'add'
+        ? `Admin ${steamId} added with ${flags || '@css/root'}`
+        : `Admin ${steamId} removed`,
+      admins,
+    });
+  } catch (error) {
+    log.error('Failed to manage admin', error);
+    return res.status(500).json({ success: false, error: 'Failed to manage admin' });
+  }
+});
+
+/**
+ * GET /api/rcon/admins
+ * List current CSS admins from admins.json
+ */
+router.get('/admins', async (_req: Request, res: Response) => {
+  try {
+    const adminsPath = process.env.CS2_ADMINS_JSON_PATH ||
+      '/game/csgo/addons/counterstrikesharp/configs/admins.json';
+    let admins: Record<string, { identity: string; flags: string[] }> = {};
+    try {
+      const raw = fs.readFileSync(adminsPath, 'utf-8');
+      admins = JSON.parse(raw);
+    } catch { /* file doesn't exist yet */ }
+    return res.json({ success: true, admins });
+  } catch (error) {
+    log.error('Failed to read admins', error);
+    return res.status(500).json({ success: false, error: 'Failed to read admins' });
   }
 });
 

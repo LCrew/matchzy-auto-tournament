@@ -12,6 +12,7 @@ import {
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import MenuIcon from '@mui/icons-material/Menu';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
+import Inventory2Icon from '@mui/icons-material/Inventory2';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
@@ -63,6 +64,7 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
     adminProfileAvatarUrl,
     viewAsUser,
     setViewAsUser,
+    isRealAdmin,
   } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -253,6 +255,17 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
           >
             Lobby
           </Button>
+          <Button
+            color="primary"
+            variant="outlined"
+            component={RouterLink}
+            to="/inventory"
+            size="small"
+            startIcon={<Inventory2Icon />}
+            sx={{ fontWeight: 600 }}
+          >
+            Inventory
+          </Button>
         </Box>
       </Box>
 
@@ -279,7 +292,7 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
             </Button>
           ) : null}
         </Box>
-        {isDev && !viewAsUser && (
+        {isDev && isRealAdmin && !viewAsUser && (
           <Tooltip title="View site as a regular player (non-admin)">
             <Chip
               icon={<VisibilityIcon sx={{ fontSize: 16 }} />}

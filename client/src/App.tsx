@@ -28,6 +28,7 @@ import Layout from './components/layout/Layout';
 import NotFound from './pages/NotFound';
 import Lobbies from './pages/Lobbies';
 import LobbyRoom from './pages/LobbyRoom';
+import Inventory from './pages/Inventory';
 import { theme } from './theme';
 
 interface ProtectedRouteProps {
@@ -179,6 +180,16 @@ function AppRoutes() {
         element={
           <ProtectedRoute adminOnly={false}>
             <PlayerProfile />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Inventory — accessible by any signed-in user */}
+      <Route
+        path="/inventory"
+        element={
+          <ProtectedRoute adminOnly={false}>
+            <Inventory />
           </ProtectedRoute>
         }
       />
