@@ -8,6 +8,7 @@ import {
   Menu,
   MenuItem,
   Tooltip,
+  Typography,
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -223,6 +224,20 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
             alt="CS-FULM SCRIM"
             sx={{ height: 32 }}
           />
+          <Typography
+            sx={{
+              fontFamily: '"High Speed", sans-serif',
+              fontSize: '1.3rem',
+              fontWeight: 400,
+              letterSpacing: '0.08em',
+              color: 'primary.main',
+              ml: 1,
+              lineHeight: 1,
+              textTransform: 'uppercase',
+            }}
+          >
+            CS-FULM
+          </Typography>
         </Box>
 
         <Box
