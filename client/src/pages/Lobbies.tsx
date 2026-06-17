@@ -43,6 +43,8 @@ export default function Lobbies() {
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
 
+  useEffect(() => { document.title = 'FULM: Lobby'; }, []);
+
   const loadLobbies = useCallback(async () => {
     try {
       const res = await api.fetch('/api/lobbies');

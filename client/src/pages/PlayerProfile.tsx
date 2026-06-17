@@ -375,7 +375,7 @@ export default function PlayerProfile() {
       }
 
       setPlayer(summaryResponse.player);
-      document.title = `${summaryResponse.player.name} - Player Profile`;
+      document.title = `FULM: ${summaryResponse.player.name}`;
 
       // Fetch FACEIT data
       try {

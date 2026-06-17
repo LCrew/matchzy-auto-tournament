@@ -370,7 +370,7 @@ export default function Layout() {
     // Let individual pages manage their own titles where possible, but ensure that
     // the Matches page always exposes a stable, human‑readable title for tests.
     if (location.pathname.startsWith('/matches')) {
-      document.title = t('layout.pageTitle.matches');
+      document.title = `FULM: ${t('layout.pageTitle.matches')}`;
     }
   }, [location.pathname, t]);
 

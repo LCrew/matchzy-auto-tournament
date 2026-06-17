@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Box, Typography, Alert, Button, Card, CardContent } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
@@ -5,6 +6,8 @@ import Inventory2Icon from '@mui/icons-material/Inventory2';
 const INVENTORY_URL = 'https://inventory.cstrike.app';
 
 export default function Inventory() {
+  useEffect(() => { document.title = 'FULM: Inventory'; }, []);
+
   return (
     <Box sx={{ maxWidth: 600, mx: 'auto', mt: 6, px: 3 }}>
       <Card>

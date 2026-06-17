@@ -37,7 +37,7 @@ export default function Login() {
     }
     hasLoadedProvidersRef.current = true;
 
-    document.title = t('login.title');
+    document.title = `FULM: ${t('login.title')}`;
   }, [t]);
 
   useEffect(() => {
@@ -149,7 +149,7 @@ export default function Login() {
                 }}
               >
                 <img
-                  src="/faviconv2.png"
+                  src="/nice.png"
                   alt="CS-FULM SCRIM"
                   style={{ width: '108px', height: '108px' }}
                 />
