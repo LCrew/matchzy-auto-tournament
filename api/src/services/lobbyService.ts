@@ -307,6 +307,16 @@ class LobbyService {
 
     if (lobby.mapPool.length === 0) throw new Error('No maps in the map pool');
 
+    // Auto-assign captains if not set
+    if (!state.captains.team1) {
+      const t1First = state.players.find((p) => p.team === 'team1');
+      if (t1First) { state.captains.team1 = t1First.steamId; t1First.isCaptain = true; }
+    }
+    if (!state.captains.team2) {
+      const t2First = state.players.find((p) => p.team === 'team2');
+      if (t2First) { state.captains.team2 = t2First.steamId; t2First.isCaptain = true; }
+    }
+
     state.veto = {
       availableMaps: [...lobby.mapPool],
       bannedMaps: [],
