@@ -164,7 +164,6 @@ export default function Layout() {
   const pageHeaders: Record<string, { title: string; icon: React.ComponentType; color?: string }> =
     {
       '/': { title: t('layout.pageTitle.dashboard'), icon: DashboardIcon },
-      '/lobby': { title: 'Lobby', icon: SportsEsportsIcon },
       '/tournament': { title: t('layout.pageTitle.tournament'), icon: EmojiEventsIcon },
       '/bracket': { title: t('layout.pageTitle.bracket'), icon: AccountTreeIcon },
       '/matches': { title: t('layout.pageTitle.matches'), icon: SportsEsportsIcon },
