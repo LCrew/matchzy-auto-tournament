@@ -164,6 +164,7 @@ export default function Lobbies() {
               : lobby.status === 'waiting' ? '#5FBF8F'
               : lobby.status === 'veto' ? '#FFC800'
               : lobby.status === 'picking' ? '#FF6309'
+              : lobby.status === 'ready' ? '#5B9BD5'
               : '#8C95A3';
 
             return (
