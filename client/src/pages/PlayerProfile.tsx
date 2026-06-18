@@ -223,22 +223,6 @@ function getFaceitColor(level: number): string {
   return colors[level] || '#666';
 }
 
-function getFaceitBorderColor(level: number): string {
-  const colors: Record<number, string> = {
-    1: '#999', 2: '#15A800', 3: '#15A800',
-    4: '#CC9F00', 5: '#CC9F00', 6: '#CC9F00',
-    7: '#CC4F07', 8: '#CC4F07',
-    9: '#BB3A22', 10: '#BB3A22',
-  };
-  return colors[level] || '#444';
-}
-
-function getFaceitTextColor(level: number): string {
-  if (level <= 1) return '#333';
-  if (level >= 4 && level <= 6) return '#1a1a00';
-  if (level >= 2 && level <= 3) return '#003300';
-  return '#fff';
-}
 
 export default function PlayerProfile() {
   type AssignedTeam = {
@@ -1019,18 +1003,17 @@ export default function PlayerProfile() {
                       </Tooltip>
                       {faceit && (
                         <Tooltip title={`FACEIT: ${faceit.nickname} · ELO ${faceit.faceitElo}`}>
-                          <Chip
-                            label={<><strong>Lvl {faceit.skillLevel}</strong> · {faceit.faceitElo}</>}
-                            sx={{
-                              fontFamily: 'monospace',
-                              fontWeight: 600,
-                              fontSize: '0.9rem',
-                              bgcolor: getFaceitColor(faceit.skillLevel),
-                              color: getFaceitTextColor(faceit.skillLevel),
-                              border: '2px solid',
-                              borderColor: getFaceitBorderColor(faceit.skillLevel),
-                            }}
-                          />
+                          <Box display="flex" alignItems="center" gap={0.75}>
+                            <Box
+                              component="img"
+                              src={`https://cdn-frontend.faceit-cdn.net/web/static/media/assets_images_skill-icons_skill_level_${faceit.skillLevel}_svg.svg`}
+                              alt={`Level ${faceit.skillLevel}`}
+                              sx={{ width: 32, height: 32 }}
+                            />
+                            <Typography fontWeight={700} sx={{ fontFamily: '"Rajdhani", sans-serif', fontSize: '1.1rem', color: getFaceitColor(faceit.skillLevel) }}>
+                              {faceit.faceitElo}
+                            </Typography>
+                          </Box>
                         </Tooltip>
                       )}
                       {latestTournamentId && (

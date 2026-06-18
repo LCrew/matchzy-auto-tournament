@@ -70,22 +70,6 @@ function getFaceitColor(level: number): string {
   return colors[level] || '#666';
 }
 
-function getFaceitBorderColor(level: number): string {
-  const colors: Record<number, string> = {
-    1: '#999', 2: '#15A800', 3: '#15A800',
-    4: '#CC9F00', 5: '#CC9F00', 6: '#CC9F00',
-    7: '#CC4F07', 8: '#CC4F07',
-    9: '#BB3A22', 10: '#BB3A22',
-  };
-  return colors[level] || '#444';
-}
-
-function getFaceitTextColor(level: number): string {
-  if (level <= 1) return '#333';
-  if (level >= 4 && level <= 6) return '#1a1a00';
-  if (level >= 2 && level <= 3) return '#003300';
-  return '#fff';
-}
 
 export default function LobbyRoom() {
   const { id } = useParams<{ id: string }>();
@@ -284,20 +268,17 @@ export default function LobbyRoom() {
           <Typography variant="body2" fontWeight={600} noWrap>{player.name}</Typography>
         </Box>
         {faceitData[player.steamId] && (
-          <Chip
-            label={<><strong>Lvl {faceitData[player.steamId].skillLevel}</strong> · {faceitData[player.steamId].faceitElo}</>}
-            size="small"
-            sx={{
-              mr: 0.5,
-              fontFamily: 'monospace',
-              fontWeight: 600,
-              fontSize: '0.7rem',
-              bgcolor: getFaceitColor(faceitData[player.steamId].skillLevel),
-              color: getFaceitTextColor(faceitData[player.steamId].skillLevel),
-              border: '2px solid',
-              borderColor: getFaceitBorderColor(faceitData[player.steamId].skillLevel),
-            }}
-          />
+          <Box display="flex" alignItems="center" gap={0.5} sx={{ mr: 0.5 }}>
+            <Box
+              component="img"
+              src={`https://cdn-frontend.faceit-cdn.net/web/static/media/assets_images_skill-icons_skill_level_${faceitData[player.steamId].skillLevel}_svg.svg`}
+              alt={`Level ${faceitData[player.steamId].skillLevel}`}
+              sx={{ width: 22, height: 22 }}
+            />
+            <Typography variant="caption" fontWeight={700} sx={{ fontFamily: '"Rajdhani", sans-serif', fontSize: '0.8rem', color: getFaceitColor(faceitData[player.steamId].skillLevel) }}>
+              {faceitData[player.steamId].faceitElo}
+            </Typography>
+          </Box>
         )}
         {player.isCaptain && (
           <Tooltip title="Captain">
