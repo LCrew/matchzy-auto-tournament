@@ -232,6 +232,11 @@ export default function LobbyRoom() {
       navigate('/lobby');
     } else if (confirmAction.type === 'end-match') {
       await rconCmd('css_restart', 'Match ended');
+      // Force-cancel the match and set lobby to cancelled
+      if (lobby?.matchSlug) {
+        try { await api.fetch(`/api/matches/${lobby.matchSlug}/force-cancel`, { method: 'POST' }); } catch { /* best effort */ }
+      }
+      try { await api.fetch(`/api/lobbies/${id}`, { method: 'DELETE' }); } catch { /* best effort */ }
     } else if (confirmAction.type === 'cancel') {
       // If a match is running, force-cancel it on the server first
       if (lobby?.matchSlug) {
