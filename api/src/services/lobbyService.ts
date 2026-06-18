@@ -81,6 +81,7 @@ class LobbyService {
           joinedAt: now,
         },
       ],
+      lobbyName: `${creatorName}'s Lobby`,
       captains: {},
       pickOrder: [],
     };

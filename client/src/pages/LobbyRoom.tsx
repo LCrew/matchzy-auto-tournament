@@ -356,9 +356,20 @@ export default function LobbyRoom() {
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Box>
               <Box display="flex" alignItems="center" gap={1}>
-                <Typography variant="h5" fontWeight={700}>
-                  {lobby.state.lobbyName || `${lobby.teamSize}v${lobby.teamSize} ${lobby.format.toUpperCase()}`}
-                </Typography>
+                {isCreator && lobby.status === 'waiting' ? (
+                  <TextField
+                    variant="standard"
+                    value={lobby.state.lobbyName || ''}
+                    placeholder={`${lobby.teamSize}v${lobby.teamSize} ${lobby.format.toUpperCase()}`}
+                    onChange={(e) => handleUpdateConfig({ lobbyName: e.target.value })}
+                    slotProps={{ input: { disableUnderline: true, sx: { fontFamily: '"High Speed", "Rajdhani", sans-serif', fontSize: '1.5rem', fontWeight: 700, color: 'text.primary', p: 0 } } }}
+                    sx={{ minWidth: 200 }}
+                  />
+                ) : (
+                  <Typography variant="h5" fontWeight={700} sx={{ fontFamily: '"High Speed", "Rajdhani", sans-serif' }}>
+                    {lobby.state.lobbyName || `${lobby.teamSize}v${lobby.teamSize} ${lobby.format.toUpperCase()}`}
+                  </Typography>
+                )}
                 <Chip label={lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)} size="small" variant="outlined" />
               </Box>
               <Typography variant="body2" color="text.secondary">
@@ -729,12 +740,12 @@ export default function LobbyRoom() {
             {isCreator && lobby.status === 'waiting' && unassigned.length === 0 && team1Players.length > 0 && team2Players.length > 0 && (
               <Button
                 variant="contained" color="success" size="large"
-                startIcon={vetoEnabled ? <PlayArrowIcon /> : <CheckIcon />}
+                startIcon={<PlayArrowIcon />}
                 onClick={handleStartVeto}
                 disabled={executing || (vetoEnabled && lobby.mapPool.length < 2)}
                 sx={{ px: 4, fontWeight: 700, fontSize: '1rem' }}
               >
-                READY
+                {vetoEnabled ? 'Start Map Veto' : 'Start Match'}
               </Button>
             )}
           </Box>
@@ -783,11 +794,8 @@ export default function LobbyRoom() {
               Match Configuration {!isCreator && <Chip label="Host only" size="small" variant="outlined" sx={{ ml: 1, verticalAlign: 'middle' }} />}
             </Typography>
             <Stack spacing={3}>
-              {/* Names */}
+              {/* Team Names */}
               <Box display="flex" gap={2} flexWrap="wrap">
-                <TextField label="Lobby Name" size="small" value={lobby.state.lobbyName || ''} disabled={!isCreator}
-                  placeholder={`${lobby.teamSize}v${lobby.teamSize} ${lobby.format.toUpperCase()}`}
-                  onChange={(e) => handleUpdateConfig({ lobbyName: e.target.value })} sx={{ flex: 1, minWidth: 150 }} />
                 <TextField label="Team 1 Name" size="small" value={lobby.state.team1Name || ''} disabled={!isCreator}
                   placeholder={getTeamName('team1')}
                   onChange={(e) => handleUpdateConfig({ team1Name: e.target.value })} sx={{ flex: 1, minWidth: 120 }} />
