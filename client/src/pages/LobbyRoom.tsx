@@ -33,12 +33,14 @@ import { LobbyMatchPanel } from '../components/lobby/LobbyMatchPanel';
 import MapIcon from '@mui/icons-material/Map';
 import StarIcon from '@mui/icons-material/Star';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
-// SwapHorizIcon removed — team join uses slot grid now
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import LogoutIcon from '@mui/icons-material/Logout';
 // SmartToyIcon removed — sidebar uses text-only buttons
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import CheckIcon from '@mui/icons-material/Check';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import BlockIcon from '@mui/icons-material/Block';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
@@ -82,6 +84,7 @@ export default function LobbyRoom() {
   const [forceServerId, setForceServerId] = useState('');
   const [confirmAction, setConfirmAction] = useState<{ type: string; title: string; message: string } | null>(null);
   const [startMenuAnchor, setStartMenuAnchor] = useState<HTMLElement | null>(null);
+  const [playerMenuAnchor, setPlayerMenuAnchor] = useState<{ el: HTMLElement; steamId: string } | null>(null);
   const [debugJson, setDebugJson] = useState<string | null>(null);
   useIsDevelopment(); // keep hook call order stable
   const { isRealAdmin } = useAuth();
@@ -286,39 +289,13 @@ export default function LobbyRoom() {
           </Box>
         )}
         {player.isCaptain && (
-          <Tooltip title="Captain">
-            <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />
-          </Tooltip>
-        )}
-        {isCreator && !isHost && player.team === 'unassigned' && lobby.status === 'waiting' && (
-          <Tooltip title="Transfer host">
-            <Button variant="outlined" color="warning" onClick={(e) => { e.stopPropagation(); handleTransferOwnership(player.steamId); }} sx={{ height: 28, fontSize: '0.7rem' }}>
-              Transfer Host
-            </Button>
-          </Tooltip>
+          <StarIcon sx={{ fontSize: 14, color: 'warning.main' }} />
         )}
         {isCreator && player.steamId !== playerSteamId && lobby.status === 'waiting' && (
-          <Box display="flex" gap={0.5}>
-            {!player.isCaptain && (
-              <>
-                <Tooltip title="Set as Team 1 Captain">
-                  <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleSetCaptain(player.steamId, 'team1'); }}>
-                    <StarIcon fontSize="small" sx={{ color: '#5B9BD5' }} />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Set as Team 2 Captain">
-                  <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleSetCaptain(player.steamId, 'team2'); }}>
-                    <StarIcon fontSize="small" sx={{ color: '#FF6B57' }} />
-                  </IconButton>
-                </Tooltip>
-              </>
-            )}
-            <Tooltip title="Kick">
-              <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleKick(player.steamId); }}>
-                <PersonRemoveIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Box>
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); setPlayerMenuAnchor({ el: e.currentTarget, steamId: player.steamId }); }}
+            sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
+            <MoreVertIcon sx={{ fontSize: 18 }} />
+          </IconButton>
         )}
       </Paper>
     );
@@ -362,7 +339,7 @@ export default function LobbyRoom() {
                 onClick={(canIJoin || canNewJoin) ? () => handleJoinTeam(team) : undefined}
                 sx={{
                   p: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  minHeight: 52,
+                  height: 54,
                   bgcolor: 'rgba(255,255,255,0.03)',
                   border: '2px dashed',
                   borderColor: 'divider',
@@ -1044,6 +1021,37 @@ export default function LobbyRoom() {
       )}
         </Box>{/* end main content */}
       </Box>{/* end flex row */}
+
+      {/* Player context menu */}
+      <Menu anchorEl={playerMenuAnchor?.el} open={!!playerMenuAnchor} onClose={() => setPlayerMenuAnchor(null)}>
+        <MenuItem onClick={() => { if (playerMenuAnchor) { handleSetCaptain(playerMenuAnchor.steamId, 'team1'); setPlayerMenuAnchor(null); } }}>
+          <ListItemIcon><StarIcon fontSize="small" sx={{ color: '#5B9BD5' }} /></ListItemIcon>
+          <ListItemText>Captain Team 1</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => { if (playerMenuAnchor) { handleSetCaptain(playerMenuAnchor.steamId, 'team2'); setPlayerMenuAnchor(null); } }}>
+          <ListItemIcon><StarIcon fontSize="small" sx={{ color: '#FF6B57' }} /></ListItemIcon>
+          <ListItemText>Captain Team 2</ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={() => { if (playerMenuAnchor) { handleTransferOwnership(playerMenuAnchor.steamId); setPlayerMenuAnchor(null); } }}>
+          <ListItemIcon><SwapHorizIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>Transfer Host</ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={() => { if (playerMenuAnchor) { handleKick(playerMenuAnchor.steamId); setPlayerMenuAnchor(null); } }} sx={{ color: 'warning.main' }}>
+          <ListItemIcon><PersonRemoveIcon fontSize="small" color="warning" /></ListItemIcon>
+          <ListItemText>Kick</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => {
+          if (playerMenuAnchor) {
+            act('kick', { targetId: playerMenuAnchor.steamId });
+            setPlayerMenuAnchor(null);
+          }
+        }} sx={{ color: 'error.main' }}>
+          <ListItemIcon><BlockIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemText>Ban</ListItemText>
+        </MenuItem>
+      </Menu>
 
       {/* Confirmation Dialog */}
       <Dialog open={!!confirmAction} onClose={() => setConfirmAction(null)}>
