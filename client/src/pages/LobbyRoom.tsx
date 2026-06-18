@@ -36,7 +36,7 @@ import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 // SwapHorizIcon removed — team join uses slot grid now
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import LogoutIcon from '@mui/icons-material/Logout';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
+// SmartToyIcon removed — sidebar uses text-only buttons
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import CheckIcon from '@mui/icons-material/Check';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
@@ -389,6 +389,137 @@ export default function LobbyRoom() {
     );
   };
 
+  // Sidebar panel (sticky, follows scroll)
+  const SidePanel = () => (
+    <Card sx={{ position: 'sticky', top: 80, width: 200, flexShrink: 0, alignSelf: 'flex-start' }}>
+      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+        <Stack spacing={1}>
+          {/* Leave + Cancel dropdown */}
+          <Box display="flex" justifyContent="flex-end" gap={0.5}>
+            {me && !matchOver && (
+              <Tooltip title="Leave Lobby">
+                <IconButton size="small" color="error" onClick={handleLeave} disabled={executing}>
+                  <LogoutIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+            {isCreator && !matchOver && (
+              <Tooltip title="Cancel Lobby">
+                <IconButton size="small" color="error" onClick={handleCancel} disabled={executing}>
+                  <Box component="span" sx={{ fontSize: 12, fontWeight: 700 }}>✕</Box>
+                </IconButton>
+              </Tooltip>
+            )}
+            {matchOver && isRealAdmin && (
+              <Button variant="text" size="small" color="error" onClick={handleCancel} disabled={executing} fullWidth>
+                Remove
+              </Button>
+            )}
+          </Box>
+
+          {/* Config dropdowns — host only, waiting phase */}
+          {lobby.status === 'waiting' && (
+            <>
+              <FormControl size="small" fullWidth disabled={!isCreator}>
+                <InputLabel>Mode</InputLabel>
+                <Select value={lobby.gameMode} label="Mode" onChange={(e) => handleUpdateConfig({ gameMode: e.target.value })}>
+                  {gameModes.map((mode) => (<MenuItem key={mode.id} value={mode.id}>{mode.name}</MenuItem>))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" fullWidth disabled={!isCreator}>
+                <InputLabel>Format</InputLabel>
+                <Select value={lobby.format} label="Format" onChange={(e) => handleUpdateConfig({ format: e.target.value })}>
+                  <MenuItem value="bo1">BO1</MenuItem>
+                  <MenuItem value="bo3">BO3</MenuItem>
+                  <MenuItem value="bo5">BO5</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField label="Per team" type="number" size="small" fullWidth value={lobby.teamSize} disabled={!isCreator}
+                onChange={(e) => handleUpdateConfig({ teamSize: Math.max(1, Math.min(10, Number(e.target.value))) })}
+                slotProps={{ htmlInput: { min: 1, max: 10 } }} />
+            </>
+          )}
+
+          {/* Auto-assign */}
+          {isCreator && lobby.status === 'waiting' && unassigned.length > 0 && (
+            <Button variant="outlined" fullWidth size="small" onClick={() => act('auto-assign')} disabled={executing} sx={{ height: 36 }}>
+              Auto-assign
+            </Button>
+          )}
+
+          {/* Admin: Fill with Bots */}
+          {isRealAdmin && isCreator && lobby.status === 'waiting' && (
+            <Button variant="outlined" fullWidth size="small" color="warning" onClick={() => act('fill-bots')} disabled={executing || lobby.state.players.length >= maxPlayers} sx={{ height: 36 }}>
+              Fill Bots
+            </Button>
+          )}
+
+          {/* Host server controls */}
+          {isCreator && lobby.matchSlug && lobby.server && !matchOver && (
+            <>
+              <Divider />
+              <Button variant="outlined" fullWidth size="small" color="warning" onClick={async () => {
+                try { await api.fetch(`/api/rcon/command`, { method: 'POST', body: JSON.stringify({ serverIds: [lobby.server!.id], command: 'custom', value: 'css_restart' }) }); setSuccess('Rebooting...'); setTimeout(() => setSuccess(''), 3000); } catch (err) { setError((err as Error).message); }
+              }} disabled={executing} sx={{ height: 36 }}>Reboot</Button>
+              <Button variant="outlined" fullWidth size="small" onClick={async () => {
+                try { await api.fetch(`/api/matches/${lobby.matchSlug}/load`, { method: 'POST' }); setSuccess('Config resent'); setTimeout(() => setSuccess(''), 3000); } catch (err) { setError((err as Error).message); }
+              }} disabled={executing} sx={{ height: 36 }}>Resend</Button>
+            </>
+          )}
+
+          {/* Admin: View JSON */}
+          {isRealAdmin && lobby.matchSlug && (
+            <Button variant="outlined" fullWidth size="small" color="warning" onClick={async () => {
+              try { const res = await api.fetch(`/api/matches/${lobby.matchSlug}`); setDebugJson(JSON.stringify(res.match?.config || res.match || res, null, 2)); } catch (err) { setDebugJson(String(err)); }
+            }} sx={{ height: 36 }}>JSON</Button>
+          )}
+
+          {/* Start button — always at the bottom */}
+          {isCreator && !matchOver && (
+            <>
+              <Divider />
+              <Button
+                variant="contained" color="success" fullWidth
+                startIcon={<PlayArrowIcon />}
+                endIcon={<ArrowDropDownIcon />}
+                onClick={(e) => setStartMenuAnchor(e.currentTarget)}
+                disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
+                sx={{ height: 44, fontWeight: 700 }}
+              >
+                Start
+              </Button>
+              <Menu anchorEl={startMenuAnchor} open={!!startMenuAnchor} onClose={() => setStartMenuAnchor(null)}>
+                {vetoEnabled && (
+                  <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }} disabled={lobby.mapPool.length < 2 || unassigned.length > 0}>
+                    <ListItemIcon><PlayArrowIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText>Map Veto</ListItemText>
+                  </MenuItem>
+                )}
+                {!vetoEnabled && (
+                  <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }} disabled={unassigned.length > 0}>
+                    <ListItemIcon><PlayArrowIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText>Start Match</ListItemText>
+                  </MenuItem>
+                )}
+                {lobby.state.captains.team1 && lobby.state.captains.team2 && unassigned.length > 0 && (
+                  <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartDraft(); }}>
+                    <ListItemIcon><AutoFixHighIcon fontSize="small" /></ListItemIcon>
+                    <ListItemText>Captain Draft</ListItemText>
+                  </MenuItem>
+                )}
+                <Divider />
+                <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }} sx={{ color: 'warning.main' }}>
+                  <ListItemIcon><PlayArrowIcon fontSize="small" color="warning" /></ListItemIcon>
+                  <ListItemText>Force Start</ListItemText>
+                </MenuItem>
+              </Menu>
+            </>
+          )}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <Box>
       <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/lobby')} sx={{ mb: 2 }}>
@@ -397,6 +528,15 @@ export default function LobbyRoom() {
 
       {error && <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2 }}>{error}</Alert>}
       {success && <Alert severity="success" onClose={() => setSuccess('')} sx={{ mb: 2 }}>{success}</Alert>}
+
+      <Box display="flex" gap={3}>
+        {/* Sticky side panel */}
+        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+          <SidePanel />
+        </Box>
+
+        {/* Main content */}
+        <Box flex={1} minWidth={0}>
 
       {/* Header */}
       <Card sx={{ mb: 3, ...(matchOver ? { opacity: 0.6 } : {}) }}>
@@ -731,117 +871,10 @@ export default function LobbyRoom() {
         </Card>
       )}
 
-      {/* Actions */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Stack spacing={1.5}>
-            {/* Start button — always visible */}
-            {isCreator && !matchOver && (
-              <>
-                <Button
-                  variant="contained" color="success" fullWidth
-                  startIcon={<PlayArrowIcon />}
-                  endIcon={<ArrowDropDownIcon />}
-                  onClick={(e) => setStartMenuAnchor(e.currentTarget)}
-                  disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
-                  sx={{ height: 44, fontWeight: 700, fontSize: '0.95rem' }}
-                >
-                  Start
-                </Button>
-                <Menu anchorEl={startMenuAnchor} open={!!startMenuAnchor} onClose={() => setStartMenuAnchor(null)}>
-                  {vetoEnabled && (
-                    <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }}
-                      disabled={lobby.mapPool.length < 2 || unassigned.length > 0}>
-                      <ListItemIcon><PlayArrowIcon fontSize="small" /></ListItemIcon>
-                      <ListItemText>Start Map Veto</ListItemText>
-                    </MenuItem>
-                  )}
-                  {!vetoEnabled && (
-                    <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }}
-                      disabled={unassigned.length > 0}>
-                      <ListItemIcon><PlayArrowIcon fontSize="small" /></ListItemIcon>
-                      <ListItemText>Start Match</ListItemText>
-                    </MenuItem>
-                  )}
-                  {lobby.state.captains.team1 && lobby.state.captains.team2 && unassigned.length > 0 && (
-                    <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartDraft(); }}>
-                      <ListItemIcon><AutoFixHighIcon fontSize="small" /></ListItemIcon>
-                      <ListItemText>Captain Draft</ListItemText>
-                    </MenuItem>
-                  )}
-                  <Divider />
-                  <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }}
-                    sx={{ color: 'warning.main' }}>
-                    <ListItemIcon><PlayArrowIcon fontSize="small" color="warning" /></ListItemIcon>
-                    <ListItemText>Force Start</ListItemText>
-                  </MenuItem>
-                </Menu>
-              </>
-            )}
-
-            {/* Auto-assign */}
-            {isCreator && lobby.status === 'waiting' && unassigned.length > 0 && (
-              <Button variant="outlined" fullWidth startIcon={<AutoFixHighIcon />} onClick={() => act('auto-assign')} disabled={executing} sx={{ height: 40 }}>
-                Auto-assign Teams
-              </Button>
-            )}
-
-            {/* Admin: Fill with Bots */}
-            {isRealAdmin && isCreator && lobby.status === 'waiting' && (
-              <Button variant="outlined" fullWidth color="warning" startIcon={<SmartToyIcon />} onClick={() => act('fill-bots')} disabled={executing || lobby.state.players.length >= maxPlayers} sx={{ height: 40 }}>
-                Fill with Bots
-              </Button>
-            )}
-
-            {/* Host server controls */}
-            {isCreator && lobby.matchSlug && lobby.server && !matchOver && (
-              <>
-                <Divider />
-                <Button variant="outlined" fullWidth color="warning" onClick={async () => {
-                  try {
-                    await api.fetch(`/api/rcon/command`, { method: 'POST', body: JSON.stringify({ serverIds: [lobby.server!.id], command: 'custom', value: 'css_restart' }) });
-                    setSuccess('Server restarting...'); setTimeout(() => setSuccess(''), 3000);
-                  } catch (err) { setError((err as Error).message); }
-                }} disabled={executing} sx={{ height: 40 }}>Reboot Server</Button>
-                <Button variant="outlined" fullWidth onClick={async () => {
-                  try {
-                    await api.fetch(`/api/matches/${lobby.matchSlug}/load`, { method: 'POST' });
-                    setSuccess('Config resent'); setTimeout(() => setSuccess(''), 3000);
-                  } catch (err) { setError((err as Error).message); }
-                }} disabled={executing} sx={{ height: 40 }}>Resend Config</Button>
-              </>
-            )}
-
-            {/* Admin: View JSON */}
-            {isRealAdmin && lobby.matchSlug && (
-              <Button variant="outlined" fullWidth color="warning" onClick={async () => {
-                try {
-                  const res = await api.fetch(`/api/matches/${lobby.matchSlug}`);
-                  setDebugJson(JSON.stringify(res.match?.config || res.match || res, null, 2));
-                } catch (err) { setDebugJson(String(err)); }
-              }} sx={{ height: 40 }}>View Match JSON</Button>
-            )}
-
-            <Divider />
-
-            {/* Leave / Cancel / Remove */}
-            {matchOver ? (
-              isRealAdmin && <Button variant="outlined" fullWidth color="error" onClick={handleCancel} disabled={executing} sx={{ height: 40 }}>Remove Lobby</Button>
-            ) : (
-              <>
-                {me && (
-                  <Button variant="outlined" fullWidth color="error" startIcon={<LogoutIcon sx={{ fontSize: 18 }} />} onClick={handleLeave} disabled={executing} sx={{ height: 40 }}>
-                    Leave
-                  </Button>
-                )}
-                {isCreator && (
-                  <Button variant="outlined" fullWidth color="error" onClick={handleCancel} disabled={executing} sx={{ height: 40 }}>Cancel Lobby</Button>
-                )}
-              </>
-            )}
-          </Stack>
-        </CardContent>
-      </Card>
+      {/* Mobile actions fallback */}
+      <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2 }}>
+        <SidePanel />
+      </Box>
 
       {/* Debug JSON output */}
       {debugJson && (
@@ -893,43 +926,6 @@ export default function LobbyRoom() {
                 <TextField label="Team 2 Name" size="small" value={lobby.state.team2Name || ''} disabled={!isCreator}
                   placeholder={getTeamName('team2')}
                   onChange={(e) => handleUpdateConfig({ team2Name: e.target.value })} sx={{ flex: 1, minWidth: 120 }} />
-              </Box>
-
-              {/* Row: Game Mode + Format + Team Size */}
-              <Box display="flex" gap={2} flexWrap="wrap">
-                <FormControl size="small" sx={{ minWidth: 180, flex: 1 }}>
-                  <InputLabel>Game Mode</InputLabel>
-                  <Select value={lobby.gameMode} label="Game Mode" disabled={!isCreator}
-                    onChange={(e) => handleUpdateConfig({ gameMode: e.target.value })}>
-                    {gameModes.map((mode) => (
-                      <MenuItem key={mode.id} value={mode.id}>{mode.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl size="small" sx={{ minWidth: 120 }}>
-                  <InputLabel>Format</InputLabel>
-                  <Select value={lobby.format} label="Format" disabled={!isCreator}
-                    onChange={(e) => handleUpdateConfig({ format: e.target.value })}>
-                    <MenuItem value="bo1">BO1</MenuItem>
-                    <MenuItem value="bo3">BO3</MenuItem>
-                    <MenuItem value="bo5">BO5</MenuItem>
-                  </Select>
-                </FormControl>
-
-                <TextField
-                  label="Players per team"
-                  type="number"
-                  size="small"
-                  value={lobby.teamSize}
-                  disabled={!isCreator}
-                  onChange={(e) => {
-                    const v = Math.max(1, Math.min(10, Number(e.target.value)));
-                    handleUpdateConfig({ teamSize: v });
-                  }}
-                  slotProps={{ htmlInput: { min: 1, max: 10 } }}
-                  sx={{ width: 140 }}
-                />
               </Box>
 
               {/* Map Veto Toggle */}
@@ -1041,6 +1037,9 @@ export default function LobbyRoom() {
           </CardContent>
         </Card>
       )}
+        </Box>{/* end main content */}
+      </Box>{/* end flex row */}
+
       {/* Confirmation Dialog */}
       <Dialog open={!!confirmAction} onClose={() => setConfirmAction(null)}>
         <DialogTitle>{confirmAction?.title}</DialogTitle>
