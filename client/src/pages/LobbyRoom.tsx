@@ -99,7 +99,7 @@ export default function LobbyRoom() {
   const [confirmAction, setConfirmAction] = useState<{ type: string; title: string; message: string } | null>(null);
   const [startMenuAnchor, setStartMenuAnchor] = useState<HTMLElement | null>(null);
   const [debugJson, setDebugJson] = useState<string | null>(null);
-  const isDev = useIsDevelopment();
+  useIsDevelopment(); // keep hook call order stable
   const { isRealAdmin } = useAuth();
 
   const [gameModes, setGameModes] = useState<GameMode[]>([]);
@@ -749,102 +749,17 @@ export default function LobbyRoom() {
       {/* Actions */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
-            {matchOver ? (
-              <>
-                <Chip label="Match finished" size="small" sx={{ height: 24, fontSize: '0.75rem' }} />
-                {isRealAdmin && (
-                  <Button variant="outlined" color="error" onClick={handleCancel} disabled={executing} sx={{ height: 40 }}>Remove Lobby</Button>
-                )}
-              </>
-            ) : (
-              <>
-                {me && (
-                  <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={handleLeave} disabled={executing} sx={{ height: 40 }}>Leave</Button>
-                )}
-                {isCreator && (
-                  <Button variant="outlined" color="error" onClick={handleCancel} disabled={executing} sx={{ height: 40 }}>Cancel Lobby</Button>
-                )}
-              </>
-            )}
-            {/* Host server controls */}
-            {isCreator && lobby.matchSlug && lobby.server && !matchOver && (
-              <>
-                <Divider orientation="vertical" flexItem />
-                <Button
-                  variant="outlined"
-                  color="warning"
-                  onClick={async () => {
-                    try {
-                      await api.fetch(`/api/rcon/command`, {
-                        method: 'POST',
-                        body: JSON.stringify({ serverIds: [lobby.server!.id], command: 'custom', value: 'css_restart' }),
-                      });
-                      setSuccess('Server restarting...');
-                      setTimeout(() => setSuccess(''), 3000);
-                    } catch (err) { setError((err as Error).message); }
-                  }}
-                  disabled={executing}
-                  sx={{ height: 40 }}
-                >
-                  Reboot Server
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={async () => {
-                    try {
-                      await api.fetch(`/api/matches/${lobby.matchSlug}/load`, { method: 'POST' });
-                      setSuccess('Match config resent to server');
-                      setTimeout(() => setSuccess(''), 3000);
-                    } catch (err) { setError((err as Error).message); }
-                  }}
-                  disabled={executing}
-                  sx={{ height: 40 }}
-                >
-                  Resend Config
-                </Button>
-              </>
-            )}
-            {/* Auto-assign — useful for all lobby creators */}
-            {isCreator && lobby.status === 'waiting' && unassigned.length > 0 && (
-              <Button variant="outlined" startIcon={<AutoFixHighIcon />} onClick={() => act('auto-assign')} disabled={executing} sx={{ height: 40 }}>Auto-assign</Button>
-            )}
-            {/* Admin-only debug tools */}
-            {isDev && isRealAdmin && isCreator && (
-              <>
-                <Divider orientation="vertical" flexItem />
-                <Chip label="DEV" size="small" color="warning" />
-                {lobby.status === 'waiting' && (
-                  <Button variant="outlined" color="warning" startIcon={<SmartToyIcon />} onClick={() => act('fill-bots')} disabled={executing || lobby.state.players.length >= maxPlayers} sx={{ height: 40 }}>Fill with Bots</Button>
-                )}
-                {lobby.matchSlug && (
-                  <Button
-                    variant="outlined"
-                    color="warning"
-                    onClick={async () => {
-                      try {
-                        const res = await api.fetch(`/api/matches/${lobby.matchSlug}`);
-                        setDebugJson(JSON.stringify(res.match?.config || res.match || res, null, 2));
-                      } catch (err) {
-                        setDebugJson(String(err));
-                      }
-                    }}
-                  >
-                    View Match JSON
-                  </Button>
-                )}
-              </>
-            )}
-            <Box flex={1} />
-            {isCreator && lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0 && (
+          <Stack spacing={1.5}>
+            {/* Start button — always visible */}
+            {isCreator && !matchOver && (
               <>
                 <Button
-                  variant="contained" color="success"
+                  variant="contained" color="success" fullWidth
                   startIcon={<PlayArrowIcon />}
                   endIcon={<ArrowDropDownIcon />}
                   onClick={(e) => setStartMenuAnchor(e.currentTarget)}
-                  disabled={executing}
-                  sx={{ height: 40, fontWeight: 700 }}
+                  disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
+                  sx={{ height: 44, fontWeight: 700, fontSize: '0.95rem' }}
                 >
                   Start
                 </Button>
@@ -878,7 +793,68 @@ export default function LobbyRoom() {
                 </Menu>
               </>
             )}
-          </Box>
+
+            {/* Auto-assign */}
+            {isCreator && lobby.status === 'waiting' && unassigned.length > 0 && (
+              <Button variant="outlined" fullWidth startIcon={<AutoFixHighIcon />} onClick={() => act('auto-assign')} disabled={executing} sx={{ height: 40 }}>
+                Auto-assign Teams
+              </Button>
+            )}
+
+            {/* Admin: Fill with Bots */}
+            {isRealAdmin && isCreator && lobby.status === 'waiting' && (
+              <Button variant="outlined" fullWidth color="warning" startIcon={<SmartToyIcon />} onClick={() => act('fill-bots')} disabled={executing || lobby.state.players.length >= maxPlayers} sx={{ height: 40 }}>
+                Fill with Bots
+              </Button>
+            )}
+
+            {/* Host server controls */}
+            {isCreator && lobby.matchSlug && lobby.server && !matchOver && (
+              <>
+                <Divider />
+                <Button variant="outlined" fullWidth color="warning" onClick={async () => {
+                  try {
+                    await api.fetch(`/api/rcon/command`, { method: 'POST', body: JSON.stringify({ serverIds: [lobby.server!.id], command: 'custom', value: 'css_restart' }) });
+                    setSuccess('Server restarting...'); setTimeout(() => setSuccess(''), 3000);
+                  } catch (err) { setError((err as Error).message); }
+                }} disabled={executing} sx={{ height: 40 }}>Reboot Server</Button>
+                <Button variant="outlined" fullWidth onClick={async () => {
+                  try {
+                    await api.fetch(`/api/matches/${lobby.matchSlug}/load`, { method: 'POST' });
+                    setSuccess('Config resent'); setTimeout(() => setSuccess(''), 3000);
+                  } catch (err) { setError((err as Error).message); }
+                }} disabled={executing} sx={{ height: 40 }}>Resend Config</Button>
+              </>
+            )}
+
+            {/* Admin: View JSON */}
+            {isRealAdmin && lobby.matchSlug && (
+              <Button variant="outlined" fullWidth color="warning" onClick={async () => {
+                try {
+                  const res = await api.fetch(`/api/matches/${lobby.matchSlug}`);
+                  setDebugJson(JSON.stringify(res.match?.config || res.match || res, null, 2));
+                } catch (err) { setDebugJson(String(err)); }
+              }} sx={{ height: 40 }}>View Match JSON</Button>
+            )}
+
+            <Divider />
+
+            {/* Leave / Cancel / Remove */}
+            {matchOver ? (
+              isRealAdmin && <Button variant="outlined" fullWidth color="error" onClick={handleCancel} disabled={executing} sx={{ height: 40 }}>Remove Lobby</Button>
+            ) : (
+              <>
+                {me && (
+                  <Button variant="outlined" fullWidth color="error" startIcon={<LogoutIcon sx={{ fontSize: 18 }} />} onClick={handleLeave} disabled={executing} sx={{ height: 40 }}>
+                    Leave
+                  </Button>
+                )}
+                {isCreator && (
+                  <Button variant="outlined" fullWidth color="error" onClick={handleCancel} disabled={executing} sx={{ height: 40 }}>Cancel Lobby</Button>
+                )}
+              </>
+            )}
+          </Stack>
         </CardContent>
       </Card>
 
