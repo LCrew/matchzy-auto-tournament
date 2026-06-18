@@ -185,7 +185,7 @@ export default function LobbyRoom() {
     lobby.state.captains.team2 === playerSteamId ? 'team2' : null;
   const matchOver = lobby.matchStatus === 'completed' || lobby.matchStatus === 'cancelled' || lobby.status === 'cancelled';
   const isCompetitive = lobby.gameMode === 'competitive';
-  const activeServer = activeServer || lobby.state.pluginServer;
+  const activeServer = lobby.server || lobby.state.pluginServer;
   const isMyVetoTurn = lobby.status === 'veto' && veto && !veto.completed && myCaptainTeam === veto.currentTurn;
 
   const team1Players = lobby.state.players.filter((p) => p.team === 'team1');
