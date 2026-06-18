@@ -915,25 +915,17 @@ export default function Layout() {
           <Box sx={{ width: '100%', maxWidth: (theme) => theme.breakpoints.values.lg }}>
             {/* Page Header */}
             {currentPageHeader && (
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-                <Box display="flex" alignItems="center" gap={2}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                <Box display="flex" alignItems="center" gap={1.5}>
                   <Box
+                    component={currentPageHeader.icon}
                     sx={{
-                      width: 48,
-                      height: 48,
-                      display: 'grid',
-                      placeItems: 'center',
+                      fontSize: 28,
+                      color: currentPageHeader.color || 'primary.main',
+                      flexShrink: 0,
                     }}
-                  >
-                    <Box
-                      component={currentPageHeader.icon}
-                      sx={{
-                        fontSize: 40,
-                        color: currentPageHeader.color || 'primary.main',
-                      }}
-                    />
-                  </Box>
-                  <Typography variant="h4" fontWeight={600}>
+                  />
+                  <Typography variant="h5" fontWeight={700}>
                     {currentPageHeader.title}
                   </Typography>
                 </Box>
