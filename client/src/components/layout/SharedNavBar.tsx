@@ -14,6 +14,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import MenuIcon from '@mui/icons-material/Menu';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
@@ -298,11 +299,20 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
             <Button
               component={RouterLink}
               to={`/lobby/${activeLobby.id}`}
-              variant="contained"
-              color="primary"
               size="small"
-              startIcon={<SportsEsportsIcon />}
-              sx={{ fontWeight: 600, textTransform: 'none', px: 2 }}
+              startIcon={<ArrowBackIcon />}
+              sx={{
+                fontWeight: 600,
+                textTransform: 'none',
+                px: 2,
+                color: 'primary.main',
+                borderRadius: 1,
+                animation: 'lobbyPulse 2s ease-in-out infinite',
+                '@keyframes lobbyPulse': {
+                  '0%, 100%': { opacity: 1 },
+                  '50%': { opacity: 0.6 },
+                },
+              }}
             >
               Return to Lobby
             </Button>
