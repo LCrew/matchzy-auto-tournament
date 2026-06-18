@@ -31,7 +31,7 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { LobbyMatchPanel } from '../components/lobby/LobbyMatchPanel';
-import AdminMatchControls from '../components/admin/AdminMatchControls';
+// AdminMatchControls moved inline to sidebar
 import MapIcon from '@mui/icons-material/Map';
 import StarIcon from '@mui/icons-material/Star';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
@@ -45,8 +45,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CloseIcon from '@mui/icons-material/Close';
 import BlockIcon from '@mui/icons-material/Block';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+// Accordion removed — match controls inline in sidebar
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -219,7 +218,6 @@ export default function LobbyRoom() {
   const handleKick = (targetId: string) => act('kick', { targetId });
   const handlePick = (targetId: string) => act('pick', { targetId });
   const handleTransferOwnership = (targetId: string) => act('transfer-ownership', { targetId });
-  const handleStartDraft = () => act('start-draft');
   const handleStartVeto = () => act('start-veto');
   const handleVetoAction = (mapId: string) => {
     if (!veto) return;
@@ -232,6 +230,8 @@ export default function LobbyRoom() {
     if (confirmAction.type === 'leave') {
       await act('leave');
       navigate('/lobby');
+    } else if (confirmAction.type === 'end-match') {
+      await rconCmd('css_restart', 'Match ended');
     } else if (confirmAction.type === 'cancel') {
       // If a match is running, force-cancel it on the server first
       if (lobby?.matchSlug) {
@@ -375,38 +375,47 @@ export default function LobbyRoom() {
   };
 
   // Sidebar panel (sticky, follows scroll)
+  const BTN = { height: 34, borderRadius: 1, fontSize: '0.8rem' } as const;
+  const SECTION = { fontSize: '0.65rem', fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase' as const, letterSpacing: '0.08em', mt: 1 };
+
+  const rconCmd = async (cmd: string, successMsg: string) => {
+    if (!lobby.server) return;
+    try {
+      await api.fetch('/api/rcon/command', { method: 'POST', body: JSON.stringify({ serverIds: [lobby.server.id], command: 'custom', value: cmd }) });
+      showSuccess(successMsg);
+    } catch (err) { showError((err as Error).message); }
+  };
+
   const sidePanelContent = (
-    <Card sx={{ width: 200, flexShrink: 0 }}>
+    <Card sx={{ width: 240, flexShrink: 0 }}>
       <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Stack spacing={1}>
+        <Stack spacing={0.75}>
           {/* Leave + Cancel */}
           <Box display="flex" justifyContent="flex-end" gap={0.5} alignItems="center">
             {me && !matchOver && (
               <Tooltip title="Leave Lobby">
-                <IconButton color="error" onClick={handleLeave} disabled={executing}
-                  sx={{ width: 28, height: 28, borderRadius: 1 }}>
+                <IconButton color="error" onClick={handleLeave} disabled={executing} sx={{ width: 28, height: 28, borderRadius: 1 }}>
                   <LogoutIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
             )}
             {isCreator && !matchOver && (
               <Tooltip title="Cancel Lobby">
-                <IconButton color="error" onClick={handleCancel} disabled={executing}
-                  sx={{ width: 28, height: 28, borderRadius: 1 }}>
+                <IconButton color="error" onClick={handleCancel} disabled={executing} sx={{ width: 28, height: 28, borderRadius: 1 }}>
                   <CloseIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
             )}
             {matchOver && isRealAdmin && (
-              <Button variant="text" size="small" color="error" onClick={handleCancel} disabled={executing} fullWidth>
-                Remove
-              </Button>
+              <Button variant="text" size="small" color="error" onClick={handleCancel} disabled={executing} fullWidth>Remove</Button>
             )}
           </Box>
 
-          {/* Config dropdowns — host only, waiting phase */}
+          {/* Config — waiting phase */}
           {lobby.status === 'waiting' && (
             <>
+              <Typography sx={SECTION}>Config</Typography>
+              <Divider />
               <FormControl size="small" fullWidth disabled={!isCreator}>
                 <InputLabel>Mode</InputLabel>
                 <Select value={lobby.gameMode} label="Mode" onChange={(e) => handleUpdateConfig({ gameMode: e.target.value })}>
@@ -424,53 +433,62 @@ export default function LobbyRoom() {
               <FormControl size="small" fullWidth disabled={!isCreator}>
                 <InputLabel>Per team</InputLabel>
                 <Select value={lobby.teamSize} label="Per team" onChange={(e) => handleUpdateConfig({ teamSize: Number(e.target.value) })}>
-                  {[1,2,3,4,5,6,7,8,9,10].map((n) => (
-                    <MenuItem key={n} value={n}>{n}v{n}</MenuItem>
-                  ))}
+                  {[1,2,3,4,5,6,7,8,9,10].map((n) => (<MenuItem key={n} value={n}>{n}v{n}</MenuItem>))}
                 </Select>
               </FormControl>
+
+              {isCreator && (
+                <Button variant="outlined" fullWidth onClick={() => act('shuffle-teams')} disabled={executing} sx={BTN}>Shuffle Teams</Button>
+              )}
+              {isRealAdmin && isCreator && (
+                <Button variant="outlined" fullWidth color="warning" onClick={() => act('fill-bots')} disabled={executing || lobby.state.players.length >= maxPlayers} sx={BTN}>Fill Bots</Button>
+              )}
             </>
           )}
 
-          {/* Shuffle Teams */}
-          {isCreator && lobby.status === 'waiting' && (
-            <Button variant="outlined" fullWidth size="small" onClick={() => act('shuffle-teams')} disabled={executing} sx={{ height: 36 }}>
-              Shuffle Teams
-            </Button>
-          )}
-
-          {/* Admin: Fill with Bots */}
-          {isRealAdmin && isCreator && lobby.status === 'waiting' && (
-            <Button variant="outlined" fullWidth size="small" color="warning" onClick={() => act('fill-bots')} disabled={executing || lobby.state.players.length >= maxPlayers} sx={{ height: 36 }}>
-              Fill Bots
-            </Button>
-          )}
-
-          {/* Host server controls */}
+          {/* Match controls — when match is active */}
           {isCreator && lobby.matchSlug && lobby.server && !matchOver && (
             <>
+              <Typography sx={SECTION}>Match</Typography>
               <Divider />
-              <Button variant="outlined" fullWidth size="small" color="warning" onClick={async () => {
-                try { await api.fetch(`/api/rcon/command`, { method: 'POST', body: JSON.stringify({ serverIds: [lobby.server!.id], command: 'custom', value: 'css_restart' }) }); showSuccess('Rebooting...'); } catch (err) { showError((err as Error).message); }
-              }} disabled={executing} sx={{ height: 36 }}>Reboot</Button>
-              <Button variant="outlined" fullWidth size="small" onClick={async () => {
+              <Button variant="outlined" fullWidth onClick={async () => {
                 try { await api.fetch(`/api/matches/${lobby.matchSlug}/load`, { method: 'POST' }); showSuccess('Config resent'); } catch (err) { showError((err as Error).message); }
-              }} disabled={executing} sx={{ height: 36 }}>Resend</Button>
+              }} disabled={executing} sx={BTN}>Resend Config</Button>
+              <Button variant="outlined" fullWidth onClick={() => rconCmd('css_forcepause', 'Match paused')} disabled={executing} sx={BTN}>Pause</Button>
+              <Button variant="outlined" fullWidth onClick={() => rconCmd('css_forceunpause', 'Match unpaused')} disabled={executing} sx={BTN}>Unpause</Button>
+              <Button variant="outlined" fullWidth onClick={() => rconCmd('css_switch', 'Teams swapped')} disabled={executing} sx={BTN}>Swap Teams</Button>
+              <Button variant="outlined" fullWidth onClick={() => rconCmd('mp_restartgame 1', 'Round restarted')} disabled={executing} sx={BTN}>Restart Round</Button>
+            </>
+          )}
+
+          {/* Admin controls */}
+          {isCreator && lobby.matchSlug && lobby.server && !matchOver && (
+            <>
+              <Typography sx={SECTION}>Admin</Typography>
+              <Divider />
+              <Button variant="outlined" fullWidth color="warning" onClick={() => rconCmd('css_restart', 'Rebooting...')} disabled={executing} sx={BTN}>Reboot Server</Button>
+              <Button variant="outlined" fullWidth color="warning" onClick={() => rconCmd('css_skipveto', 'Veto skipped')} disabled={executing} sx={BTN}>Skip Veto</Button>
+              <Button variant="outlined" fullWidth color="warning" onClick={() => rconCmd('mp_warmup_end', 'Warmup ended')} disabled={executing} sx={BTN}>End Warmup</Button>
+              <Button variant="outlined" fullWidth color="error" onClick={() => setConfirmAction({ type: 'end-match', title: 'End Match', message: 'Are you sure you want to end this match? This cannot be undone.' })} disabled={executing} sx={BTN}>End Match</Button>
             </>
           )}
 
           {/* Admin: View JSON */}
           {isRealAdmin && lobby.matchSlug && (
-            <Button variant="outlined" fullWidth size="small" color="warning" onClick={async () => {
-              try { const res = await api.fetch(`/api/matches/${lobby.matchSlug}`); setDebugJson(JSON.stringify(res.match?.config || res.match || res, null, 2)); } catch (err) { setDebugJson(String(err)); }
-            }} sx={{ height: 36 }}>JSON</Button>
+            <>
+              <Typography sx={SECTION}>Debug</Typography>
+              <Divider />
+              <Button variant="outlined" fullWidth color="warning" onClick={async () => {
+                try { const res = await api.fetch(`/api/matches/${lobby.matchSlug}`); setDebugJson(JSON.stringify(res.match?.config || res.match || res, null, 2)); } catch (err) { setDebugJson(String(err)); }
+              }} sx={BTN}>View JSON</Button>
+            </>
           )}
 
-          {/* Start button — always at the bottom */}
+          {/* Start button */}
           {isCreator && !matchOver && (
             <>
-              <Divider />
-              <ButtonGroup variant="contained" color="success" fullWidth sx={{ height: 44 }}>
+              <Box sx={{ mt: 1 }} />
+              <ButtonGroup variant="contained" color="success" fullWidth sx={{ height: 44, borderRadius: 1, '& .MuiButton-root': { borderRadius: 1 } }}>
                 <Button
                   onClick={handleStartVeto}
                   disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
@@ -764,23 +782,6 @@ export default function LobbyRoom() {
             server={lobby.server}
             getMapName={getMapName}
           />
-          {/* Admin match controls for the lobby's match */}
-          {isCreator && lobby.matchSlug && (
-            <Accordion sx={{ mt: 2 }}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle2" fontWeight={600}>Match Controls</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <AdminMatchControls
-                  serverId={lobby.server.id}
-                  matchSlug={lobby.matchSlug}
-                  matchStatus={lobby.matchStatus as 'pending' | 'ready' | 'loaded' | 'live' | 'completed' | 'cancelled' | undefined}
-                  onSuccess={(msg) => showSuccess(msg)}
-                  onError={(msg) => showError(msg)}
-                />
-              </AccordionDetails>
-            </Accordion>
-          )}
         </Box>
       )}
 

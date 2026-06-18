@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Button, Card, CardContent, Chip, Typography } from '@mui/material';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CheckIcon from '@mui/icons-material/Check';
 import { useLiveStats } from '../../hooks/useLiveStats';
 
 interface LobbyPlayerInfo {
@@ -83,11 +84,11 @@ export function LobbyMatchPanel({
             <Button
               variant="outlined"
               size="small"
-              startIcon={copied ? null : <ContentCopyIcon />}
+              startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
               onClick={handleCopy}
               sx={{ borderRadius: 2, minWidth: 0, px: 1.5 }}
             >
-              {copied ? '✓' : address}
+              {address}
             </Button>
           </Box>
 
