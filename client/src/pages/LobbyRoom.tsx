@@ -522,20 +522,41 @@ export default function LobbyRoom() {
           <CardContent>
             <Typography variant="h6" fontWeight={700} gutterBottom>Map Veto</Typography>
             {!veto.completed && (
-              <Alert
-                severity={isMyVetoTurn ? 'warning' : 'info'}
-                sx={{ mb: 2, fontWeight: isMyVetoTurn ? 700 : 400 }}
-                action={vetoCountdown !== null ? (
-                  <Typography variant="h6" fontWeight={700} fontFamily="monospace"
-                    sx={{ color: vetoCountdown <= 10 ? 'error.main' : vetoCountdown <= 20 ? 'warning.main' : 'text.primary', mr: 1 }}>
-                    {vetoCountdown}s
-                  </Typography>
-                ) : undefined}
-              >
-                {isMyVetoTurn
-                  ? `Your turn to ${veto.currentAction} a map!`
-                  : `Waiting for ${veto.currentTurn === 'team1' ? getTeamName('team1') : getTeamName('team2')} to ${veto.currentAction}...`}
-              </Alert>
+              <>
+                {vetoCountdown !== null && (
+                  <Box sx={{ textAlign: 'center', mb: 2 }}>
+                    <Typography
+                      variant={vetoCountdown <= 10 ? 'h3' : 'h4'}
+                      fontWeight={700}
+                      fontFamily="monospace"
+                      sx={{
+                        color: vetoCountdown <= 10 ? 'transparent' : vetoCountdown <= 20 ? 'warning.main' : 'text.primary',
+                        ...(vetoCountdown <= 10 ? {
+                          background: 'linear-gradient(135deg, #EE4B2B, #FF6B57, #EE4B2B)',
+                          backgroundClip: 'text',
+                          WebkitBackgroundClip: 'text',
+                          animation: 'timerPulse 0.8s ease-in-out infinite',
+                          '@keyframes timerPulse': {
+                            '0%, 100%': { transform: 'scale(1)', opacity: 1 },
+                            '50%': { transform: 'scale(1.15)', opacity: 0.8 },
+                          },
+                        } : {}),
+                        transition: 'all 0.3s ease',
+                      }}
+                    >
+                      {`0:${vetoCountdown.toString().padStart(2, '0')}`}
+                    </Typography>
+                  </Box>
+                )}
+                <Alert
+                  severity={isMyVetoTurn ? 'warning' : 'info'}
+                  sx={{ mb: 2, fontWeight: isMyVetoTurn ? 700 : 400 }}
+                >
+                  {isMyVetoTurn
+                    ? `Your turn to ${veto.currentAction} a map!`
+                    : `Waiting for ${veto.currentTurn === 'team1' ? getTeamName('team1') : getTeamName('team2')} to ${veto.currentAction}...`}
+                </Alert>
+              </>
             )}
             {veto.completed && (
               <Alert severity="success" sx={{ mb: 2 }}>Map veto complete! Selected: {veto.pickedMaps.map(getMapName).join(', ')}</Alert>

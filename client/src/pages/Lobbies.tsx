@@ -50,21 +50,23 @@ export default function Lobbies() {
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; lobbyId: string } | null>(null);
+  const navigatingRef = React.useRef(false);
 
   useEffect(() => { document.title = 'FULM: Lobby'; }, []);
 
   const loadLobbies = useCallback(async () => {
+    if (navigatingRef.current) return;
     try {
       const res = await api.fetch('/api/lobbies');
-      setLobbies(res.lobbies || []);
+      if (!navigatingRef.current) setLobbies(res.lobbies || []);
     } catch {
-      setError('Failed to load lobbies');
+      if (!navigatingRef.current) setError('Failed to load lobbies');
     }
   }, []);
 
   useEffect(() => {
     const socket = io({ transports: ['websocket'] });
-    const refresh = () => { loadLobbies(); };
+    const refresh = () => { if (!navigatingRef.current) loadLobbies(); };
     refresh();
     socket.on('lobby:created', refresh);
     socket.on('lobby:update', refresh);
@@ -74,6 +76,7 @@ export default function Lobbies() {
 
   const handleCreate = async () => {
     setCreating(true);
+    navigatingRef.current = true;
     try {
       const res = await api.fetch('/api/lobbies', {
         method: 'POST',
@@ -83,7 +86,9 @@ export default function Lobbies() {
         navigate(`/lobby/${res.lobby.id}`, { replace: true });
         return;
       }
+      navigatingRef.current = false;
     } catch (err) {
+      navigatingRef.current = false;
       setError(err instanceof Error ? err.message : 'Failed to create lobby');
       setCreating(false);
     }
