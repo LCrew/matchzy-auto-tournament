@@ -650,27 +650,6 @@ export default function Layout() {
             </List>
           </>
         )}
-        <Divider />
-        <List>
-          <ListItem disablePadding sx={{ display: 'block' }}>
-            <ListItemButton
-              component="a"
-                href="https://docs.sivert.io/docs/mat"
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{
-                minHeight: 48,
-                px: 2.5,
-                justifyContent: 'initial',
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 0, justifyContent: 'center', mr: 3 }}>
-                <LibraryBooksIcon />
-              </ListItemIcon>
-              <ListItemText primary={t('nav.documentation')} />
-            </ListItemButton>
-          </ListItem>
-        </List>
       </MuiDrawer>
 
       {/* Desktop Drawer (permanent mini variant) */}
@@ -838,36 +817,6 @@ export default function Layout() {
             </List>
           </>
         )}
-        <Divider />
-        <List>
-          <ListItem disablePadding sx={{ display: 'block' }}>
-            <Tooltip title={!open ? t('nav.documentation') : ''} placement="right">
-              <ListItemButton
-                component="a"
-                href="https://docs.sivert.io/docs/mat"
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={[
-                  { minHeight: 48, px: 2.5 },
-                  open ? { justifyContent: 'initial' } : { justifyContent: 'center' },
-                ]}
-              >
-                <ListItemIcon
-                  sx={[
-                    { minWidth: 0, justifyContent: 'center' },
-                    open ? { mr: 3 } : { mr: 'auto' },
-                  ]}
-                >
-                  <LibraryBooksIcon />
-                </ListItemIcon>
-                <ListItemText
-                  primary={t('nav.documentation')}
-                  sx={open ? { opacity: 1 } : { opacity: 0 }}
-                />
-              </ListItemButton>
-            </Tooltip>
-          </ListItem>
-        </List>
       </Drawer>
 
       <Box
