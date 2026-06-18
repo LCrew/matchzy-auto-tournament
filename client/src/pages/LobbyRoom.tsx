@@ -250,6 +250,7 @@ export default function LobbyRoom() {
         key={player.steamId}
         sx={{
           p: 1.5, display: 'flex', alignItems: 'center', gap: 1.5,
+          height: 54, boxSizing: 'border-box',
           border: '1px solid',
           borderColor: isPickable ? 'primary.main' : 'divider',
           bgcolor: isPickable ? 'rgba(255, 122, 26, 0.06)' : 'background.paper',
@@ -339,7 +340,7 @@ export default function LobbyRoom() {
                 onClick={(canIJoin || canNewJoin) ? () => handleJoinTeam(team) : undefined}
                 sx={{
                   p: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  height: 54,
+                  height: 54, boxSizing: 'border-box',
                   bgcolor: 'rgba(255,255,255,0.03)',
                   border: '2px dashed',
                   borderColor: 'divider',
