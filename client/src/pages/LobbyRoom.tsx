@@ -21,7 +21,6 @@ import {
   Popover,
   Select,
   TextField,
-  ButtonGroup,
   ToggleButton,
   ToggleButtonGroup,
   Dialog,
@@ -31,6 +30,7 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { LobbyMatchPanel } from '../components/lobby/LobbyMatchPanel';
+import AdminMatchControls from '../components/admin/AdminMatchControls';
 import MapIcon from '@mui/icons-material/Map';
 import StarIcon from '@mui/icons-material/Star';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
@@ -38,12 +38,14 @@ import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import LogoutIcon from '@mui/icons-material/Logout';
 // SmartToyIcon removed — sidebar uses text-only buttons
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+// AutoFixHighIcon removed — shuffle uses text-only
 import CheckIcon from '@mui/icons-material/Check';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CloseIcon from '@mui/icons-material/Close';
 import BlockIcon from '@mui/icons-material/Block';
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+// ArrowDropDownIcon removed — start is a single button now
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -85,7 +87,6 @@ export default function LobbyRoom() {
   const [executing, setExecuting] = useState(false);
   const [forceServerId, setForceServerId] = useState('');
   const [confirmAction, setConfirmAction] = useState<{ type: string; title: string; message: string } | null>(null);
-  const [startMenuPos, setStartMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [playerMenu, setPlayerMenu] = useState<{ steamId: string; x: number; y: number } | null>(null);
   const [debugJson, setDebugJson] = useState<string | null>(null);
   useIsDevelopment(); // keep hook call order stable
@@ -467,23 +468,15 @@ export default function LobbyRoom() {
           {isCreator && !matchOver && (
             <>
               <Divider />
-              <ButtonGroup variant="contained" color="success" fullWidth sx={{ height: 44 }}>
-                <Button
-                  onClick={handleStartVeto}
-                  disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
-                  startIcon={<PlayArrowIcon />}
-                  sx={{ flex: 4, fontWeight: 700 }}
-                >
-                  Start
-                </Button>
-                <Button
-                  onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setStartMenuPos({ x: rect.left, y: rect.top }); }}
-                  disabled={executing}
-                  sx={{ flex: 1, minWidth: 0, px: 0 }}
-                >
-                  <ArrowDropDownIcon />
-                </Button>
-              </ButtonGroup>
+              <Button
+                variant="contained" color="success" fullWidth
+                onClick={handleStartVeto}
+                disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
+                startIcon={<PlayArrowIcon />}
+                sx={{ height: 44, fontWeight: 700 }}
+              >
+                Start
+              </Button>
             </>
           )}
         </Stack>
@@ -745,6 +738,23 @@ export default function LobbyRoom() {
             server={lobby.server}
             getMapName={getMapName}
           />
+          {/* Admin match controls for the lobby's match */}
+          {isCreator && lobby.matchSlug && (
+            <Accordion sx={{ mt: 2 }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="subtitle2" fontWeight={600}>Match Controls</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <AdminMatchControls
+                  serverId={lobby.server.id}
+                  matchSlug={lobby.matchSlug}
+                  matchStatus={lobby.matchStatus as 'pending' | 'ready' | 'loaded' | 'live' | 'completed' | 'cancelled' | undefined}
+                  onSuccess={(msg) => showSuccess(msg)}
+                  onError={(msg) => showError(msg)}
+                />
+              </AccordionDetails>
+            </Accordion>
+          )}
         </Box>
       )}
 
@@ -1009,39 +1019,6 @@ export default function LobbyRoom() {
       )}
         </Box>{/* end main content */}
       </Box>{/* end flex row */}
-
-      {/* Start dropdown menu */}
-      <Popover
-        open={!!startMenuPos}
-        onClose={() => setStartMenuPos(null)}
-        anchorReference="anchorPosition"
-        anchorPosition={startMenuPos ? { top: startMenuPos.y, left: startMenuPos.x } : undefined}
-        transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      >
-        {vetoEnabled && (
-          <MenuItem onClick={() => { setStartMenuPos(null); handleStartVeto(); }} disabled={lobby.mapPool.length < 2 || unassigned.length > 0}>
-            <ListItemIcon><PlayArrowIcon fontSize="small" /></ListItemIcon>
-            <ListItemText>Map Veto</ListItemText>
-          </MenuItem>
-        )}
-        {!vetoEnabled && (
-          <MenuItem onClick={() => { setStartMenuPos(null); handleStartVeto(); }} disabled={unassigned.length > 0}>
-            <ListItemIcon><PlayArrowIcon fontSize="small" /></ListItemIcon>
-            <ListItemText>Start Match</ListItemText>
-          </MenuItem>
-        )}
-        {lobby.state.captains.team1 && lobby.state.captains.team2 && unassigned.length > 0 && (
-          <MenuItem onClick={() => { setStartMenuPos(null); handleStartDraft(); }}>
-            <ListItemIcon><AutoFixHighIcon fontSize="small" /></ListItemIcon>
-            <ListItemText>Captain Draft</ListItemText>
-          </MenuItem>
-        )}
-        <Divider />
-        <MenuItem onClick={() => { setStartMenuPos(null); handleStartVeto(); }} sx={{ color: 'warning.main' }}>
-          <ListItemIcon><PlayArrowIcon fontSize="small" color="warning" /></ListItemIcon>
-          <ListItemText>Force Start</ListItemText>
-        </MenuItem>
-      </Popover>
 
       {/* Player context menu */}
       <Popover
