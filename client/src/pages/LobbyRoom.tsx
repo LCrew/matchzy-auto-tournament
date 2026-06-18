@@ -21,6 +21,7 @@ import {
   ListItemText,
   Select,
   TextField,
+  ButtonGroup,
   ToggleButton,
   ToggleButtonGroup,
   Dialog,
@@ -40,6 +41,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import CheckIcon from '@mui/icons-material/Check';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import CloseIcon from '@mui/icons-material/Close';
 import BlockIcon from '@mui/icons-material/Block';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -372,19 +374,21 @@ export default function LobbyRoom() {
     <Card sx={{ position: 'sticky', top: 80, width: 200, flexShrink: 0, alignSelf: 'flex-start' }}>
       <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
         <Stack spacing={1}>
-          {/* Leave + Cancel dropdown */}
-          <Box display="flex" justifyContent="flex-end" gap={0.5}>
+          {/* Leave + Cancel */}
+          <Box display="flex" justifyContent="flex-end" gap={0.5} alignItems="center">
             {me && !matchOver && (
               <Tooltip title="Leave Lobby">
-                <IconButton size="small" color="error" onClick={handleLeave} disabled={executing}>
-                  <LogoutIcon sx={{ fontSize: 18 }} />
+                <IconButton color="error" onClick={handleLeave} disabled={executing}
+                  sx={{ width: 28, height: 28, borderRadius: 1 }}>
+                  <LogoutIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
             )}
             {isCreator && !matchOver && (
               <Tooltip title="Cancel Lobby">
-                <IconButton size="small" color="error" onClick={handleCancel} disabled={executing}>
-                  <Box component="span" sx={{ fontSize: 12, fontWeight: 700 }}>✕</Box>
+                <IconButton color="error" onClick={handleCancel} disabled={executing}
+                  sx={{ width: 28, height: 28, borderRadius: 1 }}>
+                  <CloseIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
             )}
@@ -461,41 +465,23 @@ export default function LobbyRoom() {
           {isCreator && !matchOver && (
             <>
               <Divider />
-              <Button
-                variant="contained" color="success" fullWidth
-                startIcon={<PlayArrowIcon />}
-                endIcon={<ArrowDropDownIcon />}
-                onClick={(e) => setStartMenuAnchor(e.currentTarget)}
-                disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
-                sx={{ height: 44, fontWeight: 700 }}
-              >
-                Start
-              </Button>
-              <Menu anchorEl={startMenuAnchor} open={!!startMenuAnchor} onClose={() => setStartMenuAnchor(null)}>
-                {vetoEnabled && (
-                  <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }} disabled={lobby.mapPool.length < 2 || unassigned.length > 0}>
-                    <ListItemIcon><PlayArrowIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText>Map Veto</ListItemText>
-                  </MenuItem>
-                )}
-                {!vetoEnabled && (
-                  <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }} disabled={unassigned.length > 0}>
-                    <ListItemIcon><PlayArrowIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText>Start Match</ListItemText>
-                  </MenuItem>
-                )}
-                {lobby.state.captains.team1 && lobby.state.captains.team2 && unassigned.length > 0 && (
-                  <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartDraft(); }}>
-                    <ListItemIcon><AutoFixHighIcon fontSize="small" /></ListItemIcon>
-                    <ListItemText>Captain Draft</ListItemText>
-                  </MenuItem>
-                )}
-                <Divider />
-                <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }} sx={{ color: 'warning.main' }}>
-                  <ListItemIcon><PlayArrowIcon fontSize="small" color="warning" /></ListItemIcon>
-                  <ListItemText>Force Start</ListItemText>
-                </MenuItem>
-              </Menu>
+              <ButtonGroup variant="contained" color="success" fullWidth sx={{ height: 44 }}>
+                <Button
+                  onClick={handleStartVeto}
+                  disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
+                  startIcon={<PlayArrowIcon />}
+                  sx={{ flex: 4, fontWeight: 700 }}
+                >
+                  Start
+                </Button>
+                <Button
+                  onClick={(e) => setStartMenuAnchor(e.currentTarget)}
+                  disabled={executing}
+                  sx={{ flex: 1, minWidth: 0, px: 0 }}
+                >
+                  <ArrowDropDownIcon />
+                </Button>
+              </ButtonGroup>
             </>
           )}
         </Stack>
@@ -1022,6 +1008,35 @@ export default function LobbyRoom() {
       )}
         </Box>{/* end main content */}
       </Box>{/* end flex row */}
+
+      {/* Start dropdown menu */}
+      <Menu anchorEl={startMenuAnchor} open={!!startMenuAnchor} onClose={() => setStartMenuAnchor(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+        {vetoEnabled && (
+          <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }} disabled={lobby.mapPool.length < 2 || unassigned.length > 0}>
+            <ListItemIcon><PlayArrowIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Map Veto</ListItemText>
+          </MenuItem>
+        )}
+        {!vetoEnabled && (
+          <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }} disabled={unassigned.length > 0}>
+            <ListItemIcon><PlayArrowIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Start Match</ListItemText>
+          </MenuItem>
+        )}
+        {lobby.state.captains.team1 && lobby.state.captains.team2 && unassigned.length > 0 && (
+          <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartDraft(); }}>
+            <ListItemIcon><AutoFixHighIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Captain Draft</ListItemText>
+          </MenuItem>
+        )}
+        <Divider />
+        <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }} sx={{ color: 'warning.main' }}>
+          <ListItemIcon><PlayArrowIcon fontSize="small" color="warning" /></ListItemIcon>
+          <ListItemText>Force Start</ListItemText>
+        </MenuItem>
+      </Menu>
 
       {/* Player context menu */}
       <Menu anchorEl={playerMenuAnchor?.el} open={!!playerMenuAnchor} onClose={() => setPlayerMenuAnchor(null)}>

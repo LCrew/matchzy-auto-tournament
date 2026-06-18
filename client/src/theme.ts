@@ -175,7 +175,7 @@ typography: {
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            borderRadius: 28, // Rounded text fields
+            borderRadius: 8,
           },
         },
       },
