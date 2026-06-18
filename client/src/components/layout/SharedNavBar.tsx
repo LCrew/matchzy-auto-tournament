@@ -79,6 +79,7 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
   const [playerAvatarUrl, setPlayerAvatarUrl] = React.useState<string | undefined>(undefined);
   const [playerName, setPlayerName] = React.useState<string>('Player');
   const [isLoadingPlayer, setIsLoadingPlayer] = React.useState(false);
+  const [activeLobby, setActiveLobby] = React.useState<{ id: string; status: string; matchStatus?: string } | null>(null);
 
   const handleAvatarMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -174,17 +175,61 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
     prevMatchRef.current = now;
   }, [playerSteamId, matchStatusLoading, matchStatus, matchStatusLabel, showSnackbar, t]);
 
+  // Poll for active lobby status
+  React.useEffect(() => {
+    if (!playerSteamId) { setActiveLobby(null); return; }
+    let mounted = true;
+    const poll = async () => {
+      try {
+        const res = await api.fetch('/api/lobbies/my-lobby');
+        if (mounted && res.lobby) {
+          setActiveLobby({ id: res.lobby.id, status: res.lobby.status, matchStatus: res.lobby.matchStatus });
+        } else if (mounted) {
+          setActiveLobby(null);
+        }
+      } catch { /* ignore */ }
+    };
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, [playerSteamId]);
+
   const ctaLabels: Record<string, string> = {
     your_turn_veto: t('nav.matchStatus.yourTurnVeto'),
     waiting_veto: t('nav.matchStatus.waitingVeto'),
     waiting_server: t('nav.matchStatus.waitingServer'),
     match_ready: t('nav.matchStatus.matchReady'),
   };
-  const ctaLabel =
+
+  // Lobby-based CTA takes priority
+  const lobbyCtaLabel = activeLobby ? (
+    activeLobby.matchStatus === 'live' || activeLobby.matchStatus === 'loaded'
+      ? 'Connect'
+      : activeLobby.status === 'veto'
+        ? 'Map Veto'
+        : activeLobby.status === 'waiting'
+          ? 'Waiting...'
+          : activeLobby.status === 'picking'
+            ? 'Drafting...'
+            : activeLobby.status === 'ready'
+              ? 'Ready'
+              : null
+  ) : null;
+
+  const lobbyCtaColor = activeLobby?.matchStatus === 'live' || activeLobby?.matchStatus === 'loaded'
+    ? 'success' as const
+    : activeLobby?.status === 'veto'
+      ? 'warning' as const
+      : 'primary' as const;
+
+  const lobbyCtaShimmer = activeLobby?.status === 'waiting';
+
+  const ctaLabel = lobbyCtaLabel || (
     playerSteamId &&
     matchStatus !== 'none' &&
     matchStatusLabel &&
-    ctaLabels[matchStatusLabel];
+    ctaLabels[matchStatusLabel]
+  );
 
   return (
     <>
@@ -294,12 +339,24 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
           {ctaLabel ? (
             <Button
               component={RouterLink}
-              to={matchStatusLabel === 'match_ready' ? '/lobby' : `/player/${playerSteamId}`}
+              to={activeLobby ? `/lobby/${activeLobby.id}` : `/player/${playerSteamId}`}
               variant="contained"
-              color="primary"
+              color={lobbyCtaLabel ? lobbyCtaColor : 'primary'}
               size="small"
               startIcon={<SportsEsportsIcon />}
-              sx={{ fontWeight: 600, textTransform: 'none', px: 2 }}
+              sx={{
+                fontWeight: 600,
+                textTransform: 'none',
+                px: 2,
+                minWidth: 140,
+                ...(lobbyCtaShimmer ? {
+                  animation: 'shimmer 2s ease-in-out infinite',
+                  '@keyframes shimmer': {
+                    '0%, 100%': { opacity: 1 },
+                    '50%': { opacity: 0.6 },
+                  },
+                } : {}),
+              }}
             >
               {ctaLabel}
             </Button>

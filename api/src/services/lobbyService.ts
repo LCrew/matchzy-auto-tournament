@@ -50,6 +50,19 @@ async function rowToResponse(row: LobbyRow): Promise<LobbyResponse> {
 }
 
 class LobbyService {
+  private async checkNotInOtherLobby(steamId: string, excludeLobbyId?: string): Promise<void> {
+    const rows = await db.queryAsync<LobbyRow>(
+      `SELECT id, lobby_state FROM lobbies WHERE status IN ('waiting', 'picking', 'veto', 'ready')`
+    );
+    for (const row of rows) {
+      if (excludeLobbyId && row.id === excludeLobbyId) continue;
+      const state: LobbyState = JSON.parse(row.lobby_state);
+      if (state.players.some((p) => p.steamId === steamId)) {
+        throw new Error(`You are already in another lobby: ${state.lobbyName || row.id}`);
+      }
+    }
+  }
+
   async listOpen(): Promise<LobbyResponse[]> {
     const rows = await db.queryAsync<LobbyRow>(
       `SELECT * FROM lobbies WHERE status NOT IN ('cancelled') ORDER BY created_at DESC`
@@ -119,6 +132,8 @@ class LobbyService {
     if (state.players.find((p) => p.steamId === steamId)) {
       throw new Error('Already in this lobby');
     }
+
+    await this.checkNotInOtherLobby(steamId, id);
 
     const maxPlayers = lobby.teamSize * 2;
     if (state.players.length >= maxPlayers) {
@@ -537,6 +552,7 @@ class LobbyService {
     // If player is not in the lobby yet, add them
     let player = state.players.find((p) => p.steamId === steamId);
     if (!player) {
+      await this.checkNotInOtherLobby(steamId, id);
       player = {
         steamId,
         name: steamId,

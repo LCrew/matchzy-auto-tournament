@@ -187,6 +187,32 @@ router.get('/faceit/players', async (req: Request, res: Response) => {
   }
 });
 
+// ── Player's active lobby ──
+
+router.get('/my-lobby', async (req: Request, res: Response) => {
+  try {
+    const steamId = getPlayerSteamId(req);
+    if (!steamId) return res.json({ success: true, lobby: null });
+
+    const rows = await db.queryAsync<{ id: string; lobby_state: string; status: string; match_slug: string | null }>(
+      `SELECT id, lobby_state, status, match_slug FROM lobbies WHERE status IN ('waiting', 'picking', 'veto', 'ready') ORDER BY created_at DESC`
+    );
+
+    for (const row of rows) {
+      const state = JSON.parse(row.lobby_state);
+      if (state.players?.some((p: { steamId: string }) => p.steamId === steamId)) {
+        const lobby = await lobbyService.getById(row.id);
+        return res.json({ success: true, lobby });
+      }
+    }
+
+    return res.json({ success: true, lobby: null });
+  } catch (error) {
+    log.error('Failed to get active lobby', error);
+    return res.status(500).json({ success: false, error: 'Failed to get active lobby' });
+  }
+});
+
 // ── Lobby CRUD ──
 
 router.get('/', async (_req: Request, res: Response) => {
