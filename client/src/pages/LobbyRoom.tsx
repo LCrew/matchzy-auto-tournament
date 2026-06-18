@@ -789,6 +789,10 @@ export default function LobbyRoom() {
             maps={veto?.completed ? veto.pickedMaps : lobby.mapPool}
             server={lobby.server}
             getMapName={getMapName}
+            getMapImage={(mapId) => {
+              const m = allMaps.find((am) => am.id === mapId);
+              return m?.imageUrl || `https://raw.githubusercontent.com/sivert-io/cs2-server-manager/master/map_thumbnails/${mapId}.webp`;
+            }}
           />
         </Box>
       )}

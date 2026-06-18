@@ -19,6 +19,7 @@ interface LobbyMatchPanelProps {
   maps: string[];
   server: { name: string; host: string; port: number };
   getMapName: (id: string) => string;
+  getMapImage?: (id: string) => string;
 }
 
 const STATUS_DISPLAY: Record<string, { label: string; color: 'warning' | 'info' | 'success' | 'default' }> = {
@@ -38,6 +39,7 @@ export function LobbyMatchPanel({
   maps,
   server,
   getMapName,
+  getMapImage,
 }: LobbyMatchPanelProps) {
   const [copied, setCopied] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -174,7 +176,7 @@ export function LobbyMatchPanel({
             sx={{
               position: 'relative', borderRadius: 2, overflow: 'hidden', height: 140,
               bgcolor: 'background.paper',
-              backgroundImage: `url(https://raw.githubusercontent.com/sivert-io/cs2-server-manager/master/map_thumbnails/${currentMap}.webp)`,
+              backgroundImage: `url(${getMapImage ? getMapImage(currentMap) : `https://raw.githubusercontent.com/sivert-io/cs2-server-manager/master/map_thumbnails/${currentMap}.webp`})`,
               backgroundSize: 'cover', backgroundPosition: 'center',
               display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
             }}
