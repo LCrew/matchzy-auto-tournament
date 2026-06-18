@@ -434,9 +434,14 @@ export default function LobbyRoom() {
                   <MenuItem value="bo5">BO5</MenuItem>
                 </Select>
               </FormControl>
-              <TextField label="Per team" type="number" size="small" fullWidth value={lobby.teamSize} disabled={!isCreator}
-                onChange={(e) => handleUpdateConfig({ teamSize: Math.max(1, Math.min(10, Number(e.target.value))) })}
-                slotProps={{ htmlInput: { min: 1, max: 10 } }} />
+              <FormControl size="small" fullWidth disabled={!isCreator}>
+                <InputLabel>Per team</InputLabel>
+                <Select value={lobby.teamSize} label="Per team" onChange={(e) => handleUpdateConfig({ teamSize: Number(e.target.value) })}>
+                  {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                    <MenuItem key={n} value={n}>{n}v{n}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </>
           )}
 
