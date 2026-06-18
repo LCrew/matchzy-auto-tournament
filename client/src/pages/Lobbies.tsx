@@ -126,9 +126,12 @@ export default function Lobbies() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" fontWeight={700}>
-          Lobby
-        </Typography>
+        <Box display="flex" alignItems="center" gap={1.5}>
+          <SportsEsportsIcon sx={{ fontSize: 28, color: 'primary.main', flexShrink: 0 }} />
+          <Typography variant="h5" fontWeight={700}>
+            Lobby
+          </Typography>
+        </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate} disabled={creating}>
           {creating ? 'Creating...' : 'Create Match'}
         </Button>
