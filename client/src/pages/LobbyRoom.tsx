@@ -47,6 +47,7 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import { useIsDevelopment } from '../hooks/useIsDevelopment';
 import type { Lobby, LobbyPlayer, GameMode } from '../types/lobby.types';
 import io from 'socket.io-client';
@@ -80,8 +81,7 @@ export default function LobbyRoom() {
   const navigate = useNavigate();
   const { playerSteamId } = useAuth();
   const [lobby, setLobby] = useState<Lobby | null>(null);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { showError, showSuccess } = useSnackbar();
   const [executing, setExecuting] = useState(false);
   const [forceServerId, setForceServerId] = useState('');
   const [confirmAction, setConfirmAction] = useState<{ type: string; title: string; message: string } | null>(null);
@@ -104,7 +104,7 @@ export default function LobbyRoom() {
       const res = await api.fetch(`/api/lobbies/${id}`);
       setLobby(res.lobby);
     } catch {
-      setError('Failed to load lobby');
+      showError('Failed to load lobby');
     }
   }, [id]);
 
@@ -114,7 +114,7 @@ export default function LobbyRoom() {
     socket.on(`lobby:update:${id}`, (updated: Lobby) => setLobby(updated));
     socket.on('lobby:deleted', (data: { id: string }) => {
       if (data.id === id) {
-        setError('Lobby was cancelled');
+        showError('Lobby was cancelled');
         setTimeout(() => navigate('/lobby'), 2000);
       }
     });
@@ -168,7 +168,7 @@ export default function LobbyRoom() {
   if (!lobby) {
     return (
       <Box p={4}>
-        {error ? <Alert severity="error">{error}</Alert> : <Typography>Loading...</Typography>}
+        <Typography>Loading...</Typography>
       </Box>
     );
   }
@@ -192,7 +192,6 @@ export default function LobbyRoom() {
 
   const act = async (action: string, body?: Record<string, unknown>) => {
     if (!quickActions.has(action)) setExecuting(true);
-    setError('');
     try {
       const endpoint = `/api/lobbies/${id}/${action}`;
       const res = await api.fetch(endpoint, {
@@ -202,8 +201,9 @@ export default function LobbyRoom() {
       if (res.lobby) setLobby(res.lobby);
       return res;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Action failed';
-      setError(msg);
+      let msg = err instanceof Error ? err.message : 'Action failed';
+      try { const parsed = JSON.parse(msg); msg = parsed.error || parsed.message || msg; } catch { /* not JSON */ }
+      showError(msg);
       return null;
     } finally {
       setExecuting(false);
@@ -448,10 +448,10 @@ export default function LobbyRoom() {
             <>
               <Divider />
               <Button variant="outlined" fullWidth size="small" color="warning" onClick={async () => {
-                try { await api.fetch(`/api/rcon/command`, { method: 'POST', body: JSON.stringify({ serverIds: [lobby.server!.id], command: 'custom', value: 'css_restart' }) }); setSuccess('Rebooting...'); setTimeout(() => setSuccess(''), 3000); } catch (err) { setError((err as Error).message); }
+                try { await api.fetch(`/api/rcon/command`, { method: 'POST', body: JSON.stringify({ serverIds: [lobby.server!.id], command: 'custom', value: 'css_restart' }) }); showSuccess('Rebooting...'); } catch (err) { showError((err as Error).message); }
               }} disabled={executing} sx={{ height: 36 }}>Reboot</Button>
               <Button variant="outlined" fullWidth size="small" onClick={async () => {
-                try { await api.fetch(`/api/matches/${lobby.matchSlug}/load`, { method: 'POST' }); setSuccess('Config resent'); setTimeout(() => setSuccess(''), 3000); } catch (err) { setError((err as Error).message); }
+                try { await api.fetch(`/api/matches/${lobby.matchSlug}/load`, { method: 'POST' }); showSuccess('Config resent'); } catch (err) { showError((err as Error).message); }
               }} disabled={executing} sx={{ height: 36 }}>Resend</Button>
             </>
           )}
@@ -497,8 +497,6 @@ export default function LobbyRoom() {
         Back to Lobbies
       </Button>
 
-      {error && <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" onClose={() => setSuccess('')} sx={{ mb: 2 }}>{success}</Alert>}
 
       <Box display="flex" gap={3}>
         {/* Sticky side panel */}
@@ -820,7 +818,6 @@ export default function LobbyRoom() {
                   disabled={executing || !forceServerId}
                   onClick={async () => {
                     setExecuting(true);
-                    setError('');
                     try {
                       await api.fetch(`/api/matches/${lobby.matchSlug}/allocate`, {
                         method: 'POST',
@@ -828,7 +825,9 @@ export default function LobbyRoom() {
                       });
                       await loadLobby();
                     } catch (err) {
-                      setError(err instanceof Error ? err.message : 'Failed to allocate');
+                      let msg = err instanceof Error ? err.message : 'Failed to allocate';
+                      try { const p = JSON.parse(msg); msg = p.error || p.message || msg; } catch { /* not JSON */ }
+                      showError(msg);
                     } finally {
                       setExecuting(false);
                     }
@@ -854,7 +853,7 @@ export default function LobbyRoom() {
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
               <Typography variant="subtitle2" fontWeight={600}>Match Config JSON</Typography>
               <Box display="flex" gap={1}>
-                <Button size="small" onClick={() => { navigator.clipboard.writeText(debugJson); setSuccess('Copied!'); setTimeout(() => setSuccess(''), 1500); }}>
+                <Button size="small" onClick={() => { navigator.clipboard.writeText(debugJson); showSuccess('Copied!'); }}>
                   Copy
                 </Button>
                 <Button size="small" color="error" onClick={() => setDebugJson(null)}>Close</Button>
