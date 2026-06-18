@@ -21,6 +21,7 @@ import {
   Popover,
   Select,
   TextField,
+  ButtonGroup,
   ToggleButton,
   ToggleButtonGroup,
   Dialog,
@@ -43,7 +44,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CloseIcon from '@mui/icons-material/Close';
 import BlockIcon from '@mui/icons-material/Block';
-// ArrowDropDownIcon removed — start is a single button now
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -88,6 +89,7 @@ export default function LobbyRoom() {
   const [forceServerId, setForceServerId] = useState('');
   const [confirmAction, setConfirmAction] = useState<{ type: string; title: string; message: string } | null>(null);
   const [playerMenu, setPlayerMenu] = useState<{ steamId: string; x: number; y: number } | null>(null);
+  const [startMenuPos, setStartMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [debugJson, setDebugJson] = useState<string | null>(null);
   useIsDevelopment(); // keep hook call order stable
   const { isRealAdmin } = useAuth();
@@ -468,15 +470,23 @@ export default function LobbyRoom() {
           {isCreator && !matchOver && (
             <>
               <Divider />
-              <Button
-                variant="contained" color="success" fullWidth
-                onClick={handleStartVeto}
-                disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
-                startIcon={<PlayArrowIcon />}
-                sx={{ height: 44, fontWeight: 700 }}
-              >
-                Start
-              </Button>
+              <ButtonGroup variant="contained" color="success" fullWidth sx={{ height: 44 }}>
+                <Button
+                  onClick={handleStartVeto}
+                  disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
+                  startIcon={<PlayArrowIcon />}
+                  sx={{ flex: 4, fontWeight: 700 }}
+                >
+                  Start
+                </Button>
+                <Button
+                  onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setStartMenuPos({ x: rect.left, y: rect.top }); }}
+                  disabled={executing}
+                  sx={{ flex: 1, minWidth: 0, px: 0 }}
+                >
+                  <ArrowDropDownIcon />
+                </Button>
+              </ButtonGroup>
             </>
           )}
         </Stack>
@@ -613,22 +623,37 @@ export default function LobbyRoom() {
                 {vetoCountdown !== null && (
                   <Box sx={{ textAlign: 'center', mb: 2 }}>
                     <Typography
-                      variant={vetoCountdown <= 10 ? 'h3' : 'h4'}
+                      variant="h4"
                       fontWeight={700}
-                      fontFamily="monospace"
                       sx={{
-                        color: vetoCountdown <= 10 ? 'transparent' : vetoCountdown <= 20 ? 'warning.main' : 'text.primary',
+                        fontFamily: '"Rajdhani", sans-serif',
+                        fontSize: '2rem',
+                        color: vetoCountdown <= 10 ? '#EE4B2B' : vetoCountdown <= 20 ? '#FFC800' : 'text.primary',
+                        animation: 'timerBeat 1s cubic-bezier(0.34, 1.56, 0.64, 1) infinite',
+                        '@keyframes timerBeat': {
+                          '0%': { transform: 'scale(1)', opacity: 1 },
+                          '15%': { transform: vetoCountdown <= 10 ? 'scale(1.18)' : 'scale(1.06)' },
+                          '30%': { transform: vetoCountdown <= 10 ? 'scale(0.95)' : 'scale(0.98)', opacity: 0.8 },
+                          '45%': { transform: vetoCountdown <= 10 ? 'scale(1.05)' : 'scale(1.02)' },
+                          '100%': { transform: 'scale(1)', opacity: 1 },
+                        },
+                        backgroundImage: vetoCountdown <= 10
+                          ? 'linear-gradient(90deg, #EE4B2B, #FF6B57, #EE4B2B, #FF6B57)'
+                          : 'none',
+                        backgroundSize: '200% 100%',
+                        backgroundClip: vetoCountdown <= 10 ? 'text' : undefined,
+                        WebkitBackgroundClip: vetoCountdown <= 10 ? 'text' : undefined,
+                        WebkitTextFillColor: vetoCountdown <= 10 ? 'transparent' : undefined,
                         ...(vetoCountdown <= 10 ? {
-                          background: 'linear-gradient(135deg, #EE4B2B, #FF6B57, #EE4B2B)',
-                          backgroundClip: 'text',
-                          WebkitBackgroundClip: 'text',
-                          animation: 'timerPulse 0.8s ease-in-out infinite',
-                          '@keyframes timerPulse': {
-                            '0%, 100%': { transform: 'scale(1)', opacity: 1 },
-                            '50%': { transform: 'scale(1.15)', opacity: 0.8 },
+                          animationName: 'timerBeat, timerShimmer',
+                          '@keyframes timerShimmer': {
+                            '0%': { backgroundPosition: '200% 0' },
+                            '100%': { backgroundPosition: '-200% 0' },
                           },
+                          animationDuration: '1s, 2s',
+                          animationTimingFunction: 'ease-in-out, linear',
+                          animationIterationCount: 'infinite, infinite',
                         } : {}),
-                        transition: 'all 0.3s ease',
                       }}
                     >
                       {`0:${vetoCountdown.toString().padStart(2, '0')}`}
@@ -664,7 +689,8 @@ export default function LobbyRoom() {
                   const isPicked = veto.pickedMaps.includes(mapId);
                   const isAvailable = veto.availableMaps.includes(mapId);
                   const canClick = isMyVetoTurn && isAvailable;
-                  const imgUrl = `https://raw.githubusercontent.com/sivert-io/cs2-server-manager/master/map_thumbnails/${mapId}.webp`;
+                  const mapData = allMaps.find((m) => m.id === mapId);
+                  const imgUrl = mapData?.imageUrl || `https://raw.githubusercontent.com/sivert-io/cs2-server-manager/master/map_thumbnails/${mapId}.webp`;
 
                   return (
                     <Paper
@@ -1019,6 +1045,21 @@ export default function LobbyRoom() {
       )}
         </Box>{/* end main content */}
       </Box>{/* end flex row */}
+
+      {/* Start dropdown */}
+      <Popover
+        open={!!startMenuPos}
+        onClose={() => setStartMenuPos(null)}
+        anchorReference="anchorPosition"
+        anchorPosition={startMenuPos ? { top: startMenuPos.y, left: startMenuPos.x } : undefined}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <MenuItem onClick={() => { setStartMenuPos(null); handleStartVeto(); }}
+          sx={{ color: 'warning.main' }}>
+          <ListItemIcon><PlayArrowIcon fontSize="small" color="warning" /></ListItemIcon>
+          <ListItemText>Force Start</ListItemText>
+        </MenuItem>
+      </Popover>
 
       {/* Player context menu */}
       <Popover
