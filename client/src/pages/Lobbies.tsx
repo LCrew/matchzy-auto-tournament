@@ -89,7 +89,7 @@ export default function Lobbies() {
         body: JSON.stringify({}),
       });
       if (res.lobby?.id) {
-        navigate(`/lobby/${res.lobby.id}`, { replace: true });
+        window.location.href = `/lobby/${res.lobby.id}`;
         return;
       }
       navigatingRef.current = false;
