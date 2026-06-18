@@ -46,6 +46,7 @@ export interface LobbyState {
   pickTurn?: 'team1' | 'team2';
   pickOrder: string[];
   veto?: LobbyVetoState;
+  pluginServer?: { id: string; name: string; host: string; port: number };
 }
 
 export interface Lobby {

@@ -6,6 +6,7 @@ import { matchAllocationService } from './matchAllocationService';
 import { loadMatchOnServer } from './matchLoadingService';
 import { serverAllocationTracker } from './serverAllocationTracker';
 import { serverService } from './serverService';
+import { rconService } from './rconService';
 import { settingsService } from './settingsService';
 import { matchzyConfigService } from './matchzyConfigService';
 import { emitMatchUpdate, emitBracketUpdate } from './socketService';
@@ -82,6 +83,14 @@ class LobbyService {
       clearTimeout(existing);
       this.vetoTimers.delete(lobbyId);
     }
+  }
+
+  private async findAvailableServer(): Promise<string | null> {
+    const servers = await serverService.getAllServers(true);
+    for (const s of servers) {
+      if (s.status === 'online' && s.lastSeen) return s.id;
+    }
+    return servers.length > 0 ? servers[0].id : null;
   }
 
   private async checkNotInOtherLobby(steamId: string, excludeLobbyId?: string): Promise<void> {
@@ -686,10 +695,68 @@ class LobbyService {
     const state = lobby.state;
     const t1 = state.players.filter((p) => p.team === 'team1');
     const t2 = state.players.filter((p) => p.team === 'team2');
-    if (t1.length === 0 || t2.length === 0) throw new Error('Both teams must have players');
 
     const maps = state.veto?.completed ? state.veto.pickedMaps : lobby.mapPool;
     if (maps.length === 0) throw new Error('No maps selected');
+
+    const isCompetitive = lobby.gameMode === 'competitive';
+
+    // Non-competitive modes: skip MatchZy, just send RCON commands
+    if (!isCompetitive) {
+      const serverId = forceServerId || (await this.findAvailableServer());
+      if (!serverId) throw new Error('No available servers');
+
+      const server = await serverService.getServerById(serverId);
+      if (!server) throw new Error(`Server '${serverId}' not found`);
+
+      // Fetch game mode commands
+      let gameModeCommands: string[] = [];
+      const modeRow = await db.queryOneAsync<{ commands: string }>('SELECT commands FROM game_modes WHERE id = ?', [lobby.gameMode]);
+      if (modeRow) {
+        gameModeCommands = JSON.parse(modeRow.commands);
+      } else {
+        // Check built-in modes
+        const builtIns: Record<string, string[]> = {
+          deathmatch: ['game_type 1; game_mode 2'],
+          gungame: ['game_type 1; game_mode 0'],
+          wingman: ['game_type 0; game_mode 2'],
+          retakes: ['css_plugins load Retakes'],
+          arenas: ['css_plugins load K4-Arenas'],
+          executes: ['css_plugins load Executes'],
+        };
+        gameModeCommands = builtIns[lobby.gameMode] || [];
+      }
+
+      // Reset server, change map, apply commands
+      try {
+        await rconService.sendCommand(serverId, 'css_restart');
+        await new Promise((r) => setTimeout(r, 2000));
+        await rconService.sendCommand(serverId, `changelevel ${maps[0]}`);
+        await new Promise((r) => setTimeout(r, 3000));
+        for (const cmd of gameModeCommands) {
+          await rconService.sendCommand(serverId, cmd);
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      } catch (err) {
+        log.warn(`Lobby ${id}: failed to apply game mode commands`, err as Error);
+      }
+
+      // Store server info in lobby state so UI can show connect
+      state.pluginServer = { id: serverId, name: server.name, host: server.host, port: server.port };
+      await db.updateAsync('lobbies', {
+        match_slug: `plugin-${id.replace('lobby-', '')}`,
+        lobby_state: JSON.stringify(state),
+        status: 'ready',
+        updated_at: Math.floor(Date.now() / 1000),
+      }, 'id = ?', [id]);
+
+      const updated = (await this.getById(id))!;
+      emitLobbyUpdate(updated);
+      return updated;
+    }
+
+    // Competitive mode: full MatchZy flow
+    if (t1.length === 0 || t2.length === 0) throw new Error('Both teams must have players');
 
     const slug = `lobby-${id.replace('lobby-', '')}`;
     const team1PlayerMap: MatchPlayer = {};
@@ -701,14 +768,8 @@ class LobbyService {
     spectators.forEach((p) => { spectatorMap[p.steamId] = p.name; });
 
     const numMaps = maps.length;
-
-    // Knife round for every map (like tournament matches)
     const mapSides: Array<'knife'> = Array.from({ length: numMaps }, () => 'knife');
-
-    // Get MatchZy Enhanced cvars (autoready, pause limits, etc.)
     const matchzyEnhancedCvars = await matchzyConfigService.generateMatchzyEnhancedCvars('single_elimination');
-
-    // Get min_players_to_ready setting
     const minPlayersToReadyRaw = await settingsService.getMatchzyMinimumReadyRequired();
     const minPlayersToReady = Math.max(0, Math.min(lobby.teamSize, minPlayersToReadyRaw));
 
@@ -740,7 +801,6 @@ class LobbyService {
     }, 'id = ?', [id]);
 
     if (forceServerId) {
-      // Force-assign specific server, bypassing all availability checks
       const server = await serverService.getServerById(forceServerId);
       if (!server) throw new Error(`Server '${forceServerId}' not found`);
       serverAllocationTracker.markAllocated(forceServerId, slug);

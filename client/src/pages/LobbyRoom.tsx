@@ -183,6 +183,8 @@ export default function LobbyRoom() {
     lobby.state.captains.team1 === playerSteamId ? 'team1' :
     lobby.state.captains.team2 === playerSteamId ? 'team2' : null;
   const matchOver = lobby.matchStatus === 'completed' || lobby.matchStatus === 'cancelled' || lobby.status === 'cancelled';
+  const isCompetitive = lobby.gameMode === 'competitive';
+  const activeServer = lobby.server || lobby.state.pluginServer;
   const isMyVetoTurn = lobby.status === 'veto' && veto && !veto.completed && myCaptainTeam === veto.currentTurn;
 
   const team1Players = lobby.state.players.filter((p) => p.team === 'team1');
@@ -795,6 +797,36 @@ export default function LobbyRoom() {
             }}
           />
         </Box>
+      )}
+
+      {/* Plugin mode — simple connect card */}
+      {!isCompetitive && activeServer && !matchOver && (
+        <Card sx={{ mb: 3, border: '1px solid', borderColor: 'divider' }}>
+          <CardContent sx={{ textAlign: 'center', py: 3 }}>
+            <Typography variant="h5" fontWeight={700} gutterBottom>
+              {lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)} Server
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {activeServer.name} — {activeServer.host}:{activeServer.port}
+            </Typography>
+            <Box display="flex" gap={1} justifyContent="center">
+              <Button
+                variant="contained" color="primary"
+                href={`steam://connect/${activeServer.host}:${activeServer.port}`}
+                sx={{ fontWeight: 700, borderRadius: 1 }}
+              >
+                Connect
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => { navigator.clipboard.writeText(`connect ${activeServer.host}:${activeServer.port}`); showSuccess('Copied!'); }}
+                sx={{ borderRadius: 1 }}
+              >
+                Copy
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
       )}
 
       {/* Ready but no server yet */}
