@@ -42,6 +42,7 @@ export interface LobbyState {
     currentTurn: 'team1' | 'team2';
     currentAction: 'ban' | 'pick';
     completed: boolean;
+    turnDeadline?: number;
   };
 }
 

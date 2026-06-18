@@ -49,7 +49,41 @@ async function rowToResponse(row: LobbyRow): Promise<LobbyResponse> {
   return resp;
 }
 
+const VETO_TIMEOUT_MS = 30_000;
+
 class LobbyService {
+  private vetoTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  private startVetoTimer(lobbyId: string): void {
+    this.clearVetoTimer(lobbyId);
+    const timer = setTimeout(async () => {
+      try {
+        const lobby = await this.getById(lobbyId);
+        if (!lobby || lobby.status !== 'veto' || !lobby.state.veto || lobby.state.veto.completed) return;
+        const veto = lobby.state.veto;
+        if (veto.availableMaps.length === 0) return;
+
+        const captainId = lobby.state.captains[veto.currentTurn];
+        if (!captainId) return;
+
+        const randomMap = veto.availableMaps[Math.floor(Math.random() * veto.availableMaps.length)];
+        log.info(`[VETO TIMER] Auto-${veto.currentAction} ${randomMap} for lobby ${lobbyId} (timeout)`);
+        await this.vetoAction(lobbyId, captainId, randomMap, veto.currentAction);
+      } catch (err) {
+        log.warn(`[VETO TIMER] Auto-action failed for lobby ${lobbyId}`, err as Error);
+      }
+    }, VETO_TIMEOUT_MS);
+    this.vetoTimers.set(lobbyId, timer);
+  }
+
+  private clearVetoTimer(lobbyId: string): void {
+    const existing = this.vetoTimers.get(lobbyId);
+    if (existing) {
+      clearTimeout(existing);
+      this.vetoTimers.delete(lobbyId);
+    }
+  }
+
   private async checkNotInOtherLobby(steamId: string, excludeLobbyId?: string): Promise<void> {
     const rows = await db.queryAsync<LobbyRow>(
       `SELECT id, lobby_state FROM lobbies WHERE status IN ('waiting', 'picking', 'veto', 'ready')`
@@ -341,6 +375,7 @@ class LobbyService {
       currentTurn: 'team1',
       currentAction: 'ban',
       completed: false,
+      turnDeadline: Date.now() + VETO_TIMEOUT_MS,
     };
 
     // If only 1 map, auto-pick it
@@ -362,6 +397,7 @@ class LobbyService {
       return this.vetoAction(id, firstCaptainId, randomMap, state.veto!.currentAction);
     }
 
+    this.startVetoTimer(id);
     return saved;
   }
 
@@ -436,6 +472,13 @@ class LobbyService {
       }
     }
 
+    if (veto.completed) {
+      this.clearVetoTimer(id);
+      veto.turnDeadline = undefined;
+    } else {
+      veto.turnDeadline = Date.now() + VETO_TIMEOUT_MS;
+    }
+
     const saved = await this.saveState(id, state);
 
     // If the next turn belongs to a bot captain, auto-play immediately
@@ -445,6 +488,10 @@ class LobbyService {
         const randomMap = veto.availableMaps[Math.floor(Math.random() * veto.availableMaps.length)];
         return this.vetoAction(id, nextCaptainId, randomMap, veto.currentAction);
       }
+    }
+
+    if (!veto.completed) {
+      this.startVetoTimer(id);
     }
 
     return saved;

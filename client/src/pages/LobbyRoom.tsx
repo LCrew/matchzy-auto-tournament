@@ -161,6 +161,21 @@ export default function LobbyRoom() {
       .catch(() => { /* ignore */ });
   }, [lobby?.state.players.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const veto = lobby?.state.veto;
+
+  // Veto countdown timer
+  const [vetoCountdown, setVetoCountdown] = useState<number | null>(null);
+  useEffect(() => {
+    if (!veto?.turnDeadline || veto.completed) { setVetoCountdown(null); return; }
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((veto.turnDeadline! - Date.now()) / 1000));
+      setVetoCountdown(remaining);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [veto?.turnDeadline, veto?.completed]);
+
   if (!lobby) {
     return (
       <Box p={4}>
@@ -176,7 +191,6 @@ export default function LobbyRoom() {
   const myCaptainTeam =
     lobby.state.captains.team1 === playerSteamId ? 'team1' :
     lobby.state.captains.team2 === playerSteamId ? 'team2' : null;
-  const veto = lobby.state.veto;
   const matchOver = lobby.matchStatus === 'completed' || lobby.matchStatus === 'cancelled';
   const isMyVetoTurn = lobby.status === 'veto' && veto && !veto.completed && myCaptainTeam === veto.currentTurn;
 
@@ -425,22 +439,30 @@ export default function LobbyRoom() {
                 {lobby.teamSize}v{lobby.teamSize} · {lobby.state.players.length}/{maxPlayers} players · {lobby.mapPool.length} maps
               </Typography>
             </Box>
-            <Box display="flex" gap={1}>
-              {lobby.matchStatus && (
-                <Chip
-                  label={lobby.matchStatus === 'live' ? 'LIVE' : lobby.matchStatus === 'loaded' ? 'Warmup' : lobby.matchStatus === 'completed' ? 'Finished' : lobby.matchStatus.charAt(0).toUpperCase() + lobby.matchStatus.slice(1)}
-                  color={lobby.matchStatus === 'live' ? 'error' : lobby.matchStatus === 'loaded' ? 'info' : lobby.matchStatus === 'completed' ? 'default' : 'warning'}
-                  size="small"
-                  sx={{ height: 24, fontSize: '0.75rem', fontWeight: 700 }}
-                />
-              )}
-              <Chip
-                label={STATUS_LABELS[lobby.status] || lobby.status}
-                color={STATUS_COLORS[lobby.status] || 'default'}
-                size="small"
-                sx={{ height: 24, fontSize: '0.75rem', fontWeight: 600 }}
-              />
-            </Box>
+            {(() => {
+              const label = lobby.matchStatus
+                ? (lobby.matchStatus === 'live' ? 'LIVE' : lobby.matchStatus === 'loaded' ? 'Warmup' : lobby.matchStatus === 'completed' ? 'Finished' : lobby.matchStatus)
+                : (STATUS_LABELS[lobby.status] || lobby.status);
+              const dotColor = lobby.matchStatus === 'live' ? '#EE4B2B'
+                : lobby.matchStatus === 'loaded' ? '#5B9BD5'
+                : lobby.matchStatus === 'completed' ? '#666'
+                : lobby.status === 'waiting' ? '#5FBF8F'
+                : lobby.status === 'veto' ? '#FFC800'
+                : lobby.status === 'picking' ? '#FF6309'
+                : lobby.status === 'ready' ? '#5B9BD5'
+                : '#8C95A3';
+              const noAnimate = matchOver;
+              return (
+                <Box display="flex" alignItems="center" gap={0.75}>
+                  <Box sx={{
+                    width: 8, height: 8, borderRadius: '50%', bgcolor: dotColor, flexShrink: 0,
+                    animation: noAnimate ? 'none' : 'dotPulse 2s ease-in-out infinite',
+                    '@keyframes dotPulse': { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.3 } },
+                  }} />
+                  <Typography variant="body2" fontWeight={600} sx={{ color: dotColor }}>{label}</Typography>
+                </Box>
+              );
+            })()}
           </Box>
         </CardContent>
       </Card>
@@ -500,10 +522,19 @@ export default function LobbyRoom() {
           <CardContent>
             <Typography variant="h6" fontWeight={700} gutterBottom>Map Veto</Typography>
             {!veto.completed && (
-              <Alert severity={isMyVetoTurn ? 'warning' : 'info'} sx={{ mb: 2, fontWeight: isMyVetoTurn ? 700 : 400 }}>
+              <Alert
+                severity={isMyVetoTurn ? 'warning' : 'info'}
+                sx={{ mb: 2, fontWeight: isMyVetoTurn ? 700 : 400 }}
+                action={vetoCountdown !== null ? (
+                  <Typography variant="h6" fontWeight={700} fontFamily="monospace"
+                    sx={{ color: vetoCountdown <= 10 ? 'error.main' : vetoCountdown <= 20 ? 'warning.main' : 'text.primary', mr: 1 }}>
+                    {vetoCountdown}s
+                  </Typography>
+                ) : undefined}
+              >
                 {isMyVetoTurn
-                  ? `Your turn to ${veto.currentAction} a map! Click a map below.`
-                  : `Waiting for ${veto.currentTurn === 'team1' ? 'Team 1' : 'Team 2'} captain to ${veto.currentAction}...`}
+                  ? `Your turn to ${veto.currentAction} a map!`
+                  : `Waiting for ${veto.currentTurn === 'team1' ? getTeamName('team1') : getTeamName('team2')} to ${veto.currentAction}...`}
               </Alert>
             )}
             {veto.completed && (
@@ -1053,10 +1084,3 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
-const STATUS_COLORS: Record<string, 'success' | 'warning' | 'info' | 'error' | 'default'> = {
-  waiting: 'success',
-  picking: 'warning',
-  veto: 'info',
-  ready: 'default',
-  cancelled: 'error',
-};
