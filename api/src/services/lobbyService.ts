@@ -609,8 +609,8 @@ class LobbyService {
       min_spectators_to_ready: 0,
       wingman: false,
       map_sides: mapSides,
-      team1: { name: state.team1Name || (state.captains.team1 ? `Team ${t1.find(p => p.steamId === state.captains.team1)?.name || '1'}` : 'Team 1'), players: team1PlayerMap },
-      team2: { name: state.team2Name || (state.captains.team2 ? `Team ${t2.find(p => p.steamId === state.captains.team2)?.name || '2'}` : 'Team 2'), players: team2PlayerMap },
+      team1: { name: state.team1Name || (state.captains.team1 ? `team_${(t1.find(p => p.steamId === state.captains.team1)?.name || '1').replace(/\s+/g, '')}` : 'Team 1'), players: team1PlayerMap },
+      team2: { name: state.team2Name || (state.captains.team2 ? `team_${(t2.find(p => p.steamId === state.captains.team2)?.name || '2').replace(/\s+/g, '')}` : 'Team 2'), players: team2PlayerMap },
       spectators: { players: spectatorMap },
       cvars: {
         mp_maxrounds: 24,

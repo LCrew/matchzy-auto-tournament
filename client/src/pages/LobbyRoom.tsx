@@ -241,8 +241,13 @@ export default function LobbyRoom() {
           borderColor: isPickable ? 'primary.main' : 'divider',
           bgcolor: isPickable ? 'rgba(255, 122, 26, 0.06)' : 'background.paper',
           cursor: isPickable ? 'pointer' : 'default',
-          transition: 'all 0.15s',
-          '&:hover': isPickable ? { borderColor: 'primary.light', transform: 'scale(1.01)' } : {},
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            bgcolor: 'action.hover',
+            borderColor: isPickable ? 'primary.light' : 'text.disabled',
+            transform: isPickable ? 'scale(1.02)' : 'none',
+            boxShadow: 1,
+          },
         }}
         onClick={isPickable ? () => handlePick(player.steamId) : undefined}
       >
@@ -310,7 +315,7 @@ export default function LobbyRoom() {
     const captainId = lobby.state.captains[team];
     if (captainId) {
       const captain = lobby.state.players.find((p) => p.steamId === captainId);
-      if (captain) return `Team ${captain.name}`;
+      if (captain) return `team_${captain.name.replace(/\s+/g, '')}`;
     }
     return team === 'team1' ? 'Team 1' : 'Team 2';
   };
@@ -334,7 +339,8 @@ export default function LobbyRoom() {
         )}
       </Stack>
       {canJoinTeams && players.length < lobby.teamSize && (
-        <Button fullWidth variant="outlined" startIcon={<SwapHorizIcon />} onClick={() => handleJoinTeam(team)} sx={{ mt: 1.5 }}>
+        <Button fullWidth variant="outlined" startIcon={<SwapHorizIcon />} onClick={() => handleJoinTeam(team)}
+          sx={{ mt: 1.5, transition: 'all 0.2s ease', '&:hover': { transform: 'scale(1.02)', boxShadow: 2 } }}>
           Join {getTeamName(team)}
         </Button>
       )}
@@ -370,10 +376,10 @@ export default function LobbyRoom() {
                     {lobby.state.lobbyName || `${lobby.teamSize}v${lobby.teamSize} ${lobby.format.toUpperCase()}`}
                   </Typography>
                 )}
-                <Chip label={lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)} size="small" variant="outlined" />
+                <Chip label={lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)} size="small" variant="outlined" sx={{ height: 24, fontSize: '0.75rem', fontWeight: 600 }} />
               </Box>
               <Typography variant="body2" color="text.secondary">
-                {lobby.state.players.length}/{maxPlayers} players · {lobby.mapPool.length} maps
+                {lobby.teamSize}v{lobby.teamSize} · {lobby.state.players.length}/{maxPlayers} players · {lobby.mapPool.length} maps
               </Typography>
             </Box>
             <Box display="flex" gap={1}>
@@ -382,13 +388,14 @@ export default function LobbyRoom() {
                   label={lobby.matchStatus === 'live' ? 'LIVE' : lobby.matchStatus === 'loaded' ? 'Warmup' : lobby.matchStatus === 'completed' ? 'Finished' : lobby.matchStatus.charAt(0).toUpperCase() + lobby.matchStatus.slice(1)}
                   color={lobby.matchStatus === 'live' ? 'error' : lobby.matchStatus === 'loaded' ? 'info' : lobby.matchStatus === 'completed' ? 'default' : 'warning'}
                   size="small"
-                  sx={{ fontWeight: 700 }}
+                  sx={{ height: 24, fontSize: '0.75rem', fontWeight: 700 }}
                 />
               )}
               <Chip
                 label={STATUS_LABELS[lobby.status] || lobby.status}
                 color={STATUS_COLORS[lobby.status] || 'default'}
                 size="small"
+                sx={{ height: 24, fontSize: '0.75rem', fontWeight: 600 }}
               />
             </Box>
           </Box>

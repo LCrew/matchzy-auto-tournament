@@ -5,6 +5,9 @@ import {
   Card,
   CardContent,
   Chip,
+  IconButton,
+  Menu,
+  MenuItem,
   Stack,
   Typography,
   Avatar,
@@ -14,34 +17,45 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import GroupsIcon from '@mui/icons-material/Groups';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import type { Lobby } from '../types/lobby.types';
 import io from 'socket.io-client';
 
-const STATUS_COLORS: Record<string, 'success' | 'warning' | 'info' | 'error' | 'default'> = {
-  waiting: 'success',
-  picking: 'warning',
-  veto: 'info',
-  ready: 'default',
-  cancelled: 'error',
-};
+const CHIP_SX = { height: 24, fontSize: '0.75rem', fontWeight: 600 };
 
 const STATUS_LABELS: Record<string, string> = {
-  waiting: 'Waiting for players',
-  picking: 'Captain draft',
-  veto: 'Map veto',
+  waiting: 'Open',
+  picking: 'Drafting',
+  veto: 'Map Veto',
   ready: 'Ready',
   cancelled: 'Cancelled',
 };
 
+const MATCH_STATUS_LABEL: Record<string, string> = {
+  loaded: 'Warmup',
+  live: 'LIVE',
+  completed: 'Finished',
+  cancelled: 'Cancelled',
+};
+
+const MATCH_STATUS_COLOR: Record<string, 'error' | 'info' | 'default' | 'warning'> = {
+  loaded: 'info',
+  live: 'error',
+  completed: 'default',
+  cancelled: 'default',
+};
+
 export default function Lobbies() {
   const navigate = useNavigate();
-  const { playerSteamId } = useAuth();
+  const { playerSteamId, isRealAdmin } = useAuth();
   const [lobbies, setLobbies] = useState<Lobby[]>([]);
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; lobbyId: string } | null>(null);
 
   useEffect(() => { document.title = 'FULM: Lobby'; }, []);
 
@@ -94,6 +108,16 @@ export default function Lobbies() {
     }
   };
 
+  const handleDeleteLobby = async (lobbyId: string) => {
+    setMenuAnchor(null);
+    try {
+      await api.fetch(`/api/lobbies/${lobbyId}`, { method: 'DELETE' });
+      loadLobbies();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete lobby');
+    }
+  };
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -132,22 +156,25 @@ export default function Lobbies() {
             const playerCount = lobby.state.players.length;
             const maxPlayers = lobby.teamSize * 2;
             const isInLobby = lobby.state.players.some((p) => p.steamId === playerSteamId);
-
             const isFinished = lobby.matchStatus === 'completed' || lobby.matchStatus === 'cancelled';
+            const statusLabel = lobby.matchStatus ? MATCH_STATUS_LABEL[lobby.matchStatus] : STATUS_LABELS[lobby.status];
+            const statusColor = lobby.matchStatus ? (MATCH_STATUS_COLOR[lobby.matchStatus] || 'default') : (lobby.status === 'waiting' ? 'success' : 'warning');
 
             return (
               <Card
                 key={lobby.id}
                 sx={{
                   cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  border: '1px solid',
-                  borderColor: isInLobby ? 'primary.main' : 'divider',
-                  opacity: isFinished ? 0.5 : 1,
+                  transition: 'all 0.2s ease',
+                  border: '2px solid',
+                  borderColor: isInLobby ? 'primary.main' : 'transparent',
+                  opacity: isFinished ? 0.45 : 1,
+                  bgcolor: isFinished ? 'action.disabledBackground' : 'background.paper',
                   '&:hover': {
                     borderColor: 'primary.main',
                     transform: 'translateY(-2px)',
-                    boxShadow: 4,
+                    boxShadow: 6,
+                    bgcolor: 'action.hover',
                   },
                 }}
                 onClick={() => handleJoin(lobby.id)}
@@ -161,40 +188,33 @@ export default function Lobbies() {
                           <Typography variant="h6" fontWeight={600} sx={{ fontFamily: '"High Speed", "Rajdhani", sans-serif' }}>
                             {lobby.state.lobbyName || `${lobby.teamSize}v${lobby.teamSize} ${lobby.format.toUpperCase()}`}
                           </Typography>
-                          <Chip label={lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)} size="small" variant="outlined" />
-                          {lobby.matchStatus && (
-                            <Chip
-                              label={lobby.matchStatus === 'live' ? 'LIVE' : lobby.matchStatus === 'loaded' ? 'Warmup' : lobby.matchStatus === 'completed' ? 'Finished' : lobby.matchStatus}
-                              color={lobby.matchStatus === 'live' ? 'error' : lobby.matchStatus === 'loaded' ? 'info' : 'default'}
-                              size="small"
-                              sx={{ fontWeight: 700 }}
-                            />
-                          )}
-                          <Chip
-                            label={STATUS_LABELS[lobby.status] || lobby.status}
-                            color={STATUS_COLORS[lobby.status] || 'default'}
-                            size="small"
-                          />
+                          <Chip label={lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)} size="small" variant="outlined" sx={CHIP_SX} />
+                          <Chip label={statusLabel || lobby.status} color={statusColor} size="small" sx={CHIP_SX} />
                         </Box>
                         <Typography variant="body2" color="text.secondary">
-                          Created by {lobby.state.players.find((p) => p.steamId === lobby.createdBy)?.name || 'Unknown'}
+                          {lobby.teamSize}v{lobby.teamSize} · Created by {lobby.state.players.find((p) => p.steamId === lobby.createdBy)?.name || 'Unknown'}
                         </Typography>
                       </Box>
                     </Box>
 
-                    <Box display="flex" alignItems="center" gap={2}>
-                      <AvatarGroup max={6} sx={{ '& .MuiAvatar-root': { width: 32, height: 32, fontSize: 14 } }}>
+                    <Box display="flex" alignItems="center" gap={1.5}>
+                      <AvatarGroup max={6} sx={{ '& .MuiAvatar-root': { width: 30, height: 30, fontSize: 13, border: '2px solid', borderColor: 'background.paper' } }}>
                         {lobby.state.players.map((p) => (
-                          <Avatar key={p.steamId} src={p.avatar} alt={p.name} sx={{ width: 32, height: 32 }}>
+                          <Avatar key={p.steamId} src={p.avatar} alt={p.name} sx={{ width: 30, height: 30 }}>
                             {p.name[0]}
                           </Avatar>
                         ))}
                       </AvatarGroup>
-                      <Chip
-                        label={`${playerCount}/${maxPlayers}`}
-                        variant="outlined"
-                        color={playerCount >= maxPlayers ? 'success' : 'default'}
-                      />
+                      <Chip label={`${playerCount}/${maxPlayers}`} variant="outlined" sx={CHIP_SX} />
+                      {isRealAdmin && (
+                        <IconButton
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); setMenuAnchor({ el: e.currentTarget, lobbyId: lobby.id }); }}
+                          sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}
+                        >
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
+                      )}
                     </Box>
                   </Box>
                 </CardContent>
@@ -203,6 +223,17 @@ export default function Lobbies() {
           })}
         </Stack>
       )}
+
+      {/* Admin context menu */}
+      <Menu
+        anchorEl={menuAnchor?.el}
+        open={!!menuAnchor}
+        onClose={() => setMenuAnchor(null)}
+      >
+        <MenuItem onClick={() => menuAnchor && handleDeleteLobby(menuAnchor.lobbyId)} sx={{ color: 'error.main' }}>
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> Delete Lobby
+        </MenuItem>
+      </Menu>
     </Box>
   );
 }
