@@ -185,7 +185,7 @@ export default function Lobbies() {
                       <GroupsIcon sx={{ color: isFinished ? 'text.disabled' : 'primary.main', fontSize: 28 }} />
                       <Box>
                         <Box display="flex" alignItems="center" gap={1}>
-                          <Typography variant="h6" fontWeight={600} sx={{ fontFamily: '"High Speed", "Rajdhani", sans-serif' }}>
+                          <Typography variant="h6" fontWeight={600} sx={{ fontFamily: '"Rajdhani", sans-serif' }}>
                             {lobby.state.lobbyName || `${lobby.teamSize}v${lobby.teamSize} ${lobby.format.toUpperCase()}`}
                           </Typography>
                           <Chip label={lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)} size="small" variant="outlined" sx={CHIP_SX} />

@@ -76,13 +76,13 @@ class LobbyService {
           steamId: createdBy,
           name: creatorName,
           avatar: creatorAvatar,
-          team: 'unassigned',
-          isCaptain: false,
+          team: 'team1',
+          isCaptain: true,
           joinedAt: now,
         },
       ],
       lobbyName: `${creatorName}'s Lobby`,
-      captains: {},
+      captains: { team1: createdBy },
       pickOrder: [],
     };
 
