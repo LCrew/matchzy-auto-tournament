@@ -771,10 +771,10 @@ class LobbyService {
     return updated;
   }
 
-  async cancel(id: string, requesterId: string): Promise<void> {
+  async cancel(id: string, requesterId: string, isAdmin = false): Promise<void> {
     const lobby = await this.getById(id);
     if (!lobby) throw new Error('Lobby not found');
-    if (lobby.createdBy !== requesterId) throw new Error('Only the lobby creator can cancel');
+    if (!isAdmin && lobby.createdBy !== requesterId) throw new Error('Only the lobby creator or an admin can cancel');
 
     await this.updateStatus(id, 'cancelled');
     emitLobbyDeleted(id);

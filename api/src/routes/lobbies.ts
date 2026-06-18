@@ -461,7 +461,9 @@ router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const player = await requirePlayer(req, res);
     if (!player) return;
-    await lobbyService.cancel(req.params.id, player.steamId);
+    const adminRow = await db.queryOneAsync<{ is_admin?: number }>('SELECT is_admin FROM players WHERE id = ?', [player.steamId]);
+    const isAdmin = adminRow?.is_admin === 1;
+    await lobbyService.cancel(req.params.id, player.steamId, isAdmin);
     return res.json({ success: true });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to cancel lobby';

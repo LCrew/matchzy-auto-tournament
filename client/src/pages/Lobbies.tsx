@@ -12,7 +12,6 @@ import {
   Typography,
   Avatar,
   AvatarGroup,
-  Alert,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import GroupsIcon from '@mui/icons-material/Groups';
@@ -22,6 +21,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import type { Lobby } from '../types/lobby.types';
 import io from 'socket.io-client';
 
@@ -47,8 +47,14 @@ export default function Lobbies() {
   const navigate = useNavigate();
   const { playerSteamId, isRealAdmin } = useAuth();
   const [lobbies, setLobbies] = useState<Lobby[]>([]);
-  const [error, setError] = useState('');
+  const { showError } = useSnackbar();
   const [creating, setCreating] = useState(false);
+
+  const parseError = (err: unknown, fallback: string) => {
+    let msg = err instanceof Error ? err.message : fallback;
+    try { const p = JSON.parse(msg); msg = p.error || p.message || msg; } catch { /* not JSON */ }
+    return msg;
+  };
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; lobbyId: string } | null>(null);
   const navigatingRef = React.useRef(false);
 
@@ -60,9 +66,9 @@ export default function Lobbies() {
       const res = await api.fetch('/api/lobbies');
       if (!navigatingRef.current) setLobbies(res.lobbies || []);
     } catch {
-      if (!navigatingRef.current) setError('Failed to load lobbies');
+      if (!navigatingRef.current) showError('Failed to load lobbies');
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     const socket = io({ transports: ['websocket'] });
@@ -89,7 +95,7 @@ export default function Lobbies() {
       navigatingRef.current = false;
     } catch (err) {
       navigatingRef.current = false;
-      setError(err instanceof Error ? err.message : 'Failed to create lobby');
+      showError(parseError(err, 'Failed to create lobby'));
       setCreating(false);
     }
   };
@@ -103,7 +109,7 @@ export default function Lobbies() {
       }
       navigate(`/lobby/${lobbyId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to join');
+      showError(parseError(err, 'Failed to join'));
     }
   };
 
@@ -113,7 +119,7 @@ export default function Lobbies() {
       await api.fetch(`/api/lobbies/${lobbyId}`, { method: 'DELETE' });
       loadLobbies();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete lobby');
+      showError(parseError(err, 'Failed to delete lobby'));
     }
   };
 
@@ -128,11 +134,6 @@ export default function Lobbies() {
         </Button>
       </Box>
 
-      {error && (
-        <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
 
       {lobbies.length === 0 ? (
         <Card sx={{ textAlign: 'center', py: 8 }}>
