@@ -72,7 +72,8 @@ export default function Lobbies() {
         body: JSON.stringify({}),
       });
       if (res.lobby?.id) {
-        navigate(`/lobby/${res.lobby.id}`);
+        navigate(`/lobby/${res.lobby.id}`, { replace: true });
+        return;
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create lobby');

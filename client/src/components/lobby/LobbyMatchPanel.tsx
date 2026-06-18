@@ -68,38 +68,55 @@ export function LobbyMatchPanel({
   return (
     <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
       <CardContent>
-        <Box display="flex" flexDirection="column" gap={3}>
-          {/* Round / Map header */}
-          <Box>
-            <Typography variant="h5" fontWeight={600}>Round {roundNumber}</Typography>
-            <Typography variant="body2" color="text.secondary">Map {mapNumber}</Typography>
+        <Box display="flex" flexDirection="column" gap={2}>
+          {/* Connect bar — top priority */}
+          <Box display="flex" gap={1} alignItems="center">
+            <Button
+              variant="contained"
+              color={connected ? 'success' : 'primary'}
+              startIcon={<SportsEsportsIcon />}
+              onClick={handleConnect}
+              sx={{ flex: 1, py: 1, fontWeight: 700, borderRadius: 2 }}
+            >
+              {connected ? '✓ Connecting...' : 'Connect'}
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={copied ? null : <ContentCopyIcon />}
+              onClick={handleCopy}
+              sx={{ borderRadius: 2, minWidth: 0, px: 1.5 }}
+            >
+              {copied ? '✓' : address}
+            </Button>
           </Box>
+
+          <Typography variant="caption" color="text.secondary">
+            {server.name}
+          </Typography>
 
           {/* Scoreboard */}
           <Card variant="outlined">
-            <CardContent>
+            <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box flex={1} textAlign="center">
-                  <Typography variant="h5" fontWeight={700} color="primary.main">{team1Name}</Typography>
+                  <Typography variant="h6" fontWeight={700} color="primary.main">{team1Name}</Typography>
                   <Typography variant="h3" fontWeight={700} color="primary.main">{t1Score}</Typography>
-                  <Typography variant="body2" color="text.secondary">Current map score (Rounds)</Typography>
                 </Box>
-                <Box textAlign="center" px={3}>
-                  <Typography variant="h4" fontWeight={700} color="text.secondary">VS</Typography>
-                  {statusInfo && (
-                    <Chip label={statusInfo.label} color={statusInfo.color} size="small" sx={{ mt: 1 }} />
-                  )}
+                <Box textAlign="center" px={2}>
+                  <Typography variant="h5" fontWeight={700} color="text.secondary">VS</Typography>
+                  {statusInfo && <Chip label={statusInfo.label} color={statusInfo.color} size="small" sx={{ mt: 0.5 }} />}
+                  <Typography variant="caption" color="text.secondary" display="block">Round {roundNumber}</Typography>
                 </Box>
                 <Box flex={1} textAlign="center">
-                  <Typography variant="h5" fontWeight={700} color="error.main">{team2Name}</Typography>
+                  <Typography variant="h6" fontWeight={700} color="error.main">{team2Name}</Typography>
                   <Typography variant="h3" fontWeight={700} color="error.main">{t2Score}</Typography>
-                  <Typography variant="body2" color="text.secondary">Current map score (Rounds)</Typography>
                 </Box>
               </Box>
             </CardContent>
           </Card>
 
-          {/* Player stats table */}
+          {/* Player stats */}
           {(() => {
             const liveT1 = stats?.playerStats?.team1 || [];
             const liveT2 = stats?.playerStats?.team2 || [];
@@ -110,20 +127,14 @@ export function LobbyMatchPanel({
             ) => {
               if (livePlayers.length > 0) {
                 return livePlayers.map((p) => ({
-                  steamId: p.steamId,
-                  name: p.name,
-                  kills: p.kills,
-                  deaths: p.deaths,
-                  assists: p.assists,
-                  damage: p.damage,
+                  steamId: p.steamId, name: p.name,
+                  kills: p.kills, deaths: p.deaths, assists: p.assists, damage: p.damage,
                   hasStats: true,
                 }));
               }
               return lobbyPlayers.map((p) => ({
-                steamId: p.steamId,
-                name: p.name,
-                kills: 0, deaths: 0, assists: 0, damage: 0,
-                hasStats: false,
+                steamId: p.steamId, name: p.name,
+                kills: 0, deaths: 0, assists: 0, damage: 0, hasStats: false,
               }));
             };
 
@@ -139,19 +150,15 @@ export function LobbyMatchPanel({
                   <Box key={team} flex={1}>
                     <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
                       <Typography variant="subtitle2" fontWeight={600} color={color}>{name}</Typography>
-                      <Typography variant="caption" color="text.disabled" fontFamily="monospace">K / D / A / DMG</Typography>
+                      <Typography variant="caption" color="text.disabled" fontFamily="monospace">K/D/A/DMG</Typography>
                     </Box>
                     {rows.map((p, idx) => (
                       <Box key={p.steamId} display="flex" justifyContent="space-between" alignItems="center"
-                        sx={{
-                          py: 0.75, px: 1,
-                          bgcolor: idx === 0 && p.hasStats ? 'action.selected' : 'action.hover',
-                          borderRadius: 0.5, mb: 0.5,
-                        }}>
+                        sx={{ py: 0.5, px: 1, bgcolor: idx === 0 && p.hasStats ? 'action.selected' : 'action.hover', borderRadius: 0.5, mb: 0.5 }}>
                         <Typography variant="body2" fontWeight={500} sx={{ flex: 1, minWidth: 0 }} noWrap>{p.name}</Typography>
                         <Typography variant="body2" color={p.hasStats ? 'text.primary' : 'text.disabled'} fontFamily="monospace" fontWeight={600}
-                          sx={{ minWidth: 110, textAlign: 'right' }}>
-                          {p.hasStats ? `${p.kills} / ${p.deaths} / ${p.assists} / ${p.damage}` : '— / — / — / —'}
+                          sx={{ minWidth: 100, textAlign: 'right' }}>
+                          {p.hasStats ? `${p.kills}/${p.deaths}/${p.assists}/${p.damage}` : '—/—/—/—'}
                         </Typography>
                       </Box>
                     ))}
@@ -164,54 +171,21 @@ export function LobbyMatchPanel({
           {/* Map image */}
           <Box
             sx={{
-              position: 'relative',
-              borderRadius: 2,
-              overflow: 'hidden',
-              height: 180,
+              position: 'relative', borderRadius: 2, overflow: 'hidden', height: 140,
               bgcolor: 'background.paper',
               backgroundImage: `url(https://raw.githubusercontent.com/sivert-io/cs2-server-manager/master/map_thumbnails/${currentMap}.webp)`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'column',
+              backgroundSize: 'cover', backgroundPosition: 'center',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
             }}
           >
             <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.4)' }} />
-            <Typography variant="h3" fontWeight={700} sx={{ position: 'relative', color: '#fff', textShadow: '2px 2px 8px rgba(0,0,0,0.8)' }}>
+            <Typography variant="h4" fontWeight={700} sx={{ position: 'relative', color: '#fff', textShadow: '2px 2px 8px rgba(0,0,0,0.8)' }}>
               {mapDisplayName}
             </Typography>
-            <Typography variant="body2" sx={{ position: 'relative', color: 'rgba(255,255,255,0.8)', textShadow: '1px 1px 3px rgba(0,0,0,0.8)' }}>
+            <Typography variant="caption" sx={{ position: 'relative', color: 'rgba(255,255,255,0.8)' }}>
               Map {mapNumber}
             </Typography>
           </Box>
-
-          {/* Server info */}
-          <Box>
-            <Typography variant="body2" color="text.secondary">Server: {server.name}</Typography>
-            <Typography variant="body2" color="text.secondary" fontFamily="monospace">{address}</Typography>
-          </Box>
-
-          {/* Connect */}
-          <Button
-            variant="contained" size="large" fullWidth
-            color={connected ? 'success' : 'primary'}
-            startIcon={<SportsEsportsIcon />}
-            onClick={handleConnect}
-            sx={{ py: 1.5, fontWeight: 700, fontSize: '1rem', borderRadius: 3 }}
-          >
-            {connected ? '✓ Connecting...' : 'Connect to Server'}
-          </Button>
-
-          <Button
-            variant="outlined" size="small" fullWidth
-            startIcon={copied ? null : <ContentCopyIcon />}
-            onClick={handleCopy}
-            sx={{ borderRadius: 3 }}
-          >
-            {copied ? '✓ Copied!' : 'Copy Console Command'}
-          </Button>
         </Box>
       </CardContent>
     </Card>

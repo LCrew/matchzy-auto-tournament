@@ -165,6 +165,7 @@ export default function LobbyRoom() {
     lobby.state.captains.team1 === playerSteamId ? 'team1' :
     lobby.state.captains.team2 === playerSteamId ? 'team2' : null;
   const veto = lobby.state.veto;
+  const matchOver = lobby.matchStatus === 'completed' || lobby.matchStatus === 'cancelled';
   const isMyVetoTurn = lobby.status === 'veto' && veto && !veto.completed && myCaptainTeam === veto.currentTurn;
 
   const team1Players = lobby.state.players.filter((p) => p.team === 'team1');
@@ -432,25 +433,60 @@ export default function LobbyRoom() {
                 </Stack>
               </Box>
             )}
-            {!veto.completed && veto.availableMaps.length > 0 && (
+            {!veto.completed && (
               <Box display="flex" flexWrap="wrap" gap={1.5}>
-                {veto.availableMaps.map((mapId) => (
-                  <Paper
-                    key={mapId}
-                    onClick={isMyVetoTurn ? () => handleVetoAction(mapId) : undefined}
-                    sx={{
-                      p: 2, minWidth: 140, textAlign: 'center',
-                      cursor: isMyVetoTurn ? 'pointer' : 'default',
-                      border: '2px solid',
-                      borderColor: isMyVetoTurn ? (veto.currentAction === 'ban' ? 'error.main' : 'success.main') : 'divider',
-                      bgcolor: isMyVetoTurn ? (veto.currentAction === 'ban' ? 'rgba(255,107,87,0.08)' : 'rgba(95,191,143,0.08)') : 'background.paper',
-                      transition: 'all 0.15s',
-                      '&:hover': isMyVetoTurn ? { transform: 'scale(1.03)', boxShadow: 2 } : {},
-                    }}
-                  >
-                    <Typography variant="body1" fontWeight={600}>{getMapName(mapId)}</Typography>
-                  </Paper>
-                ))}
+                {lobby.mapPool.map((mapId) => {
+                  const isBanned = veto.bannedMaps.includes(mapId);
+                  const isPicked = veto.pickedMaps.includes(mapId);
+                  const isAvailable = veto.availableMaps.includes(mapId);
+                  const canClick = isMyVetoTurn && isAvailable;
+                  const imgUrl = `https://raw.githubusercontent.com/sivert-io/cs2-server-manager/master/map_thumbnails/${mapId}.webp`;
+
+                  return (
+                    <Paper
+                      key={mapId}
+                      onClick={canClick ? () => handleVetoAction(mapId) : undefined}
+                      sx={{
+                        width: 160, overflow: 'hidden', position: 'relative',
+                        cursor: canClick ? 'pointer' : 'default',
+                        border: '2px solid',
+                        borderColor: isPicked ? 'success.main' : isBanned ? 'error.dark' : canClick ? (veto.currentAction === 'ban' ? 'error.main' : 'success.main') : 'divider',
+                        opacity: isBanned ? 0.45 : 1,
+                        filter: isBanned ? 'grayscale(100%)' : 'none',
+                        transition: 'all 0.15s',
+                        '&:hover': canClick ? { transform: 'scale(1.03)', boxShadow: 3 } : {},
+                      }}
+                    >
+                      <Box sx={{
+                        height: 90,
+                        backgroundImage: `url(${imgUrl})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        position: 'relative',
+                      }}>
+                        {isBanned && (
+                          <Box sx={{
+                            position: 'absolute', inset: 0,
+                            background: 'linear-gradient(135deg, transparent 45%, rgba(255,80,80,0.8) 45%, rgba(255,80,80,0.8) 55%, transparent 55%)',
+                          }} />
+                        )}
+                        {isPicked && (
+                          <Box sx={{
+                            position: 'absolute', inset: 0, bgcolor: 'rgba(95,191,143,0.3)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            <CheckIcon sx={{ color: '#fff', fontSize: 36 }} />
+                          </Box>
+                        )}
+                      </Box>
+                      <Box sx={{ px: 1, py: 0.75, textAlign: 'center' }}>
+                        <Typography variant="caption" fontWeight={600} noWrap sx={{ textDecoration: isBanned ? 'line-through' : 'none' }}>
+                          {getMapName(mapId)}
+                        </Typography>
+                      </Box>
+                    </Paper>
+                  );
+                })}
               </Box>
             )}
             {veto.pickedMaps.length > 0 && (
@@ -466,7 +502,7 @@ export default function LobbyRoom() {
       )}
 
       {/* Match Panel — shown when server is allocated */}
-      {lobby.server && (
+      {lobby.server && !matchOver && (
         <Box sx={{ mb: 3 }}>
           <LobbyMatchPanel
             matchSlug={lobby.matchSlug}
@@ -577,11 +613,22 @@ export default function LobbyRoom() {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
-            {me && (
-              <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={handleLeave} disabled={executing}>Leave</Button>
-            )}
-            {isCreator && (
-              <Button variant="outlined" color="error" onClick={handleCancel} disabled={executing}>Cancel Lobby</Button>
+            {matchOver ? (
+              <>
+                <Typography variant="body2" color="text.secondary">Match finished</Typography>
+                {isRealAdmin && (
+                  <Button variant="outlined" color="error" onClick={handleCancel} disabled={executing}>Remove Lobby</Button>
+                )}
+              </>
+            ) : (
+              <>
+                {me && (
+                  <Button variant="outlined" color="error" startIcon={<LogoutIcon />} onClick={handleLeave} disabled={executing}>Leave</Button>
+                )}
+                {isCreator && (
+                  <Button variant="outlined" color="error" onClick={handleCancel} disabled={executing}>Cancel Lobby</Button>
+                )}
+              </>
             )}
             {/* Auto-assign — useful for all lobby creators */}
             {isCreator && lobby.status === 'waiting' && unassigned.length > 0 && (
