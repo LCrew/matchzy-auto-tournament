@@ -496,7 +496,7 @@ class LobbyService {
   async updateConfig(
     id: string,
     requesterId: string,
-    config: { gameMode?: string; mapPool?: string[]; format?: LobbyFormat; teamSize?: number }
+    config: { gameMode?: string; mapPool?: string[]; format?: LobbyFormat; teamSize?: number; lobbyName?: string; team1Name?: string; team2Name?: string }
   ): Promise<LobbyResponse> {
     const lobby = await this.getById(id);
     if (!lobby) throw new Error('Lobby not found');
@@ -509,6 +509,15 @@ class LobbyService {
     if (config.format !== undefined) updates.format = config.format;
     if (config.teamSize !== undefined && config.teamSize >= 1 && config.teamSize <= 10) {
       updates.team_size = config.teamSize;
+    }
+
+    // Update names in lobby_state
+    if (config.lobbyName !== undefined || config.team1Name !== undefined || config.team2Name !== undefined) {
+      const state = lobby.state;
+      if (config.lobbyName !== undefined) state.lobbyName = config.lobbyName;
+      if (config.team1Name !== undefined) state.team1Name = config.team1Name;
+      if (config.team2Name !== undefined) state.team2Name = config.team2Name;
+      updates.lobby_state = JSON.stringify(state);
     }
 
     await db.updateAsync('lobbies', updates, 'id = ?', [id]);
@@ -599,8 +608,8 @@ class LobbyService {
       min_spectators_to_ready: 0,
       wingman: false,
       map_sides: mapSides,
-      team1: { name: 'Team 1', players: team1PlayerMap },
-      team2: { name: 'Team 2', players: team2PlayerMap },
+      team1: { name: state.team1Name || (state.captains.team1 ? `Team ${t1.find(p => p.steamId === state.captains.team1)?.name || '1'}` : 'Team 1'), players: team1PlayerMap },
+      team2: { name: state.team2Name || (state.captains.team2 ? `Team ${t2.find(p => p.steamId === state.captains.team2)?.name || '2'}` : 'Team 2'), players: team2PlayerMap },
       spectators: { players: spectatorMap },
       cvars: {
         mp_maxrounds: 24,

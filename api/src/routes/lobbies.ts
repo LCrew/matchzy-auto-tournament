@@ -345,8 +345,8 @@ router.post('/:id/update-config', async (req: Request, res: Response) => {
   try {
     const player = await requirePlayer(req, res);
     if (!player) return;
-    const { gameMode, mapPool, format, teamSize } = req.body;
-    const lobby = await lobbyService.updateConfig(req.params.id, player.steamId, { gameMode, mapPool, format, teamSize });
+    const { gameMode, mapPool, format, teamSize, lobbyName, team1Name, team2Name } = req.body;
+    const lobby = await lobbyService.updateConfig(req.params.id, player.steamId, { gameMode, mapPool, format, teamSize, lobbyName, team1Name, team2Name });
     return res.json({ success: true, lobby });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to update config';

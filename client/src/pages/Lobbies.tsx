@@ -133,6 +133,8 @@ export default function Lobbies() {
             const maxPlayers = lobby.teamSize * 2;
             const isInLobby = lobby.state.players.some((p) => p.steamId === playerSteamId);
 
+            const isFinished = lobby.matchStatus === 'completed' || lobby.matchStatus === 'cancelled';
+
             return (
               <Card
                 key={lobby.id}
@@ -141,10 +143,11 @@ export default function Lobbies() {
                   transition: 'all 0.2s',
                   border: '1px solid',
                   borderColor: isInLobby ? 'primary.main' : 'divider',
+                  opacity: isFinished ? 0.5 : 1,
                   '&:hover': {
                     borderColor: 'primary.main',
-                    transform: 'translateY(-1px)',
-                    boxShadow: 3,
+                    transform: 'translateY(-2px)',
+                    boxShadow: 4,
                   },
                 }}
                 onClick={() => handleJoin(lobby.id)}
@@ -152,21 +155,26 @@ export default function Lobbies() {
                 <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
                   <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Box display="flex" alignItems="center" gap={2}>
-                      <GroupsIcon sx={{ color: 'primary.main', fontSize: 28 }} />
+                      <GroupsIcon sx={{ color: isFinished ? 'text.disabled' : 'primary.main', fontSize: 28 }} />
                       <Box>
                         <Box display="flex" alignItems="center" gap={1}>
                           <Typography variant="h6" fontWeight={600}>
-                            {lobby.teamSize}v{lobby.teamSize} {lobby.format.toUpperCase()}
+                            {lobby.state.lobbyName || `${lobby.teamSize}v${lobby.teamSize} ${lobby.format.toUpperCase()}`}
                           </Typography>
-                          <Chip label={lobby.gameMode} size="small" variant="outlined" />
+                          <Chip label={lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)} size="small" variant="outlined" />
+                          {lobby.matchStatus && (
+                            <Chip
+                              label={lobby.matchStatus === 'live' ? 'LIVE' : lobby.matchStatus === 'loaded' ? 'Warmup' : lobby.matchStatus === 'completed' ? 'Finished' : lobby.matchStatus}
+                              color={lobby.matchStatus === 'live' ? 'error' : lobby.matchStatus === 'loaded' ? 'info' : 'default'}
+                              size="small"
+                              sx={{ fontWeight: 700 }}
+                            />
+                          )}
                           <Chip
                             label={STATUS_LABELS[lobby.status] || lobby.status}
                             color={STATUS_COLORS[lobby.status] || 'default'}
                             size="small"
                           />
-                          {isInLobby && (
-                            <Chip label="You're in" color="primary" size="small" variant="outlined" />
-                          )}
                         </Box>
                         <Typography variant="body2" color="text.secondary">
                           Created by {lobby.state.players.find((p) => p.steamId === lobby.createdBy)?.name || 'Unknown'}

@@ -304,11 +304,24 @@ export default function LobbyRoom() {
     );
   };
 
+  const getTeamName = (team: 'team1' | 'team2') => {
+    const customName = team === 'team1' ? lobby.state.team1Name : lobby.state.team2Name;
+    if (customName) return customName;
+    const captainId = lobby.state.captains[team];
+    if (captainId) {
+      const captain = lobby.state.players.find((p) => p.steamId === captainId);
+      if (captain) return `Team ${captain.name}`;
+    }
+    return team === 'team1' ? 'Team 1' : 'Team 2';
+  };
+
+  const canJoinTeams = lobby.status === 'waiting' && !matchOver;
+
   const TeamColumn = ({ team, players, color }: { team: 'team1' | 'team2'; players: LobbyPlayer[]; color: string }) => (
     <Box flex={1}>
       <Box display="flex" alignItems="center" gap={1} mb={1.5}>
         <Box sx={{ width: 4, height: 24, borderRadius: 1, bgcolor: color }} />
-        <Typography variant="h6" fontWeight={700}>{team === 'team1' ? 'Team 1' : 'Team 2'}</Typography>
+        <Typography variant="h6" fontWeight={700}>{getTeamName(team)}</Typography>
         <Chip label={`${players.length}/${lobby.teamSize}`} size="small" variant="outlined" />
         {lobby.status === 'picking' && lobby.state.pickTurn === team && (
           <Chip label="Picking..." color="warning" size="small" sx={{ animation: 'pulse 1.5s infinite' }} />
@@ -320,9 +333,9 @@ export default function LobbyRoom() {
           <Typography variant="body2" color="text.disabled" sx={{ py: 2, textAlign: 'center' }}>No players yet</Typography>
         )}
       </Stack>
-      {lobby.status === 'waiting' && players.length < lobby.teamSize && (
+      {canJoinTeams && players.length < lobby.teamSize && (
         <Button fullWidth variant="outlined" startIcon={<SwapHorizIcon />} onClick={() => handleJoinTeam(team)} sx={{ mt: 1.5 }}>
-          Join {team === 'team1' ? 'Team 1' : 'Team 2'}
+          Join {getTeamName(team)}
         </Button>
       )}
     </Box>
@@ -338,24 +351,35 @@ export default function LobbyRoom() {
       {success && <Alert severity="success" onClose={() => setSuccess('')} sx={{ mb: 2 }}>{success}</Alert>}
 
       {/* Header */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 3, ...(matchOver ? { opacity: 0.6 } : {}) }}>
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Box>
               <Box display="flex" alignItems="center" gap={1}>
                 <Typography variant="h5" fontWeight={700}>
-                  {lobby.teamSize}v{lobby.teamSize} {lobby.format.toUpperCase()}
+                  {lobby.state.lobbyName || `${lobby.teamSize}v${lobby.teamSize} ${lobby.format.toUpperCase()}`}
                 </Typography>
-                <Chip label={lobby.gameMode} size="small" variant="outlined" />
+                <Chip label={lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)} size="small" variant="outlined" />
               </Box>
               <Typography variant="body2" color="text.secondary">
                 {lobby.state.players.length}/{maxPlayers} players · {lobby.mapPool.length} maps
               </Typography>
             </Box>
-            <Chip
-              label={STATUS_LABELS[lobby.status] || lobby.status}
-              color={STATUS_COLORS[lobby.status] || 'default'}
-            />
+            <Box display="flex" gap={1}>
+              {lobby.matchStatus && (
+                <Chip
+                  label={lobby.matchStatus === 'live' ? 'LIVE' : lobby.matchStatus === 'loaded' ? 'Warmup' : lobby.matchStatus === 'completed' ? 'Finished' : lobby.matchStatus.charAt(0).toUpperCase() + lobby.matchStatus.slice(1)}
+                  color={lobby.matchStatus === 'live' ? 'error' : lobby.matchStatus === 'loaded' ? 'info' : lobby.matchStatus === 'completed' ? 'default' : 'warning'}
+                  size="small"
+                  sx={{ fontWeight: 700 }}
+                />
+              )}
+              <Chip
+                label={STATUS_LABELS[lobby.status] || lobby.status}
+                color={STATUS_COLORS[lobby.status] || 'default'}
+                size="small"
+              />
+            </Box>
           </Box>
         </CardContent>
       </Card>
@@ -506,8 +530,8 @@ export default function LobbyRoom() {
         <Box sx={{ mb: 3 }}>
           <LobbyMatchPanel
             matchSlug={lobby.matchSlug}
-            team1Name="Team 1"
-            team2Name="Team 2"
+            team1Name={getTeamName('team1')}
+            team2Name={getTeamName('team2')}
             team1Players={team1Players.map((p) => ({ steamId: p.steamId, name: p.name }))}
             team2Players={team2Players.map((p) => ({ steamId: p.steamId, name: p.name }))}
             maps={veto?.completed ? veto.pickedMaps : lobby.mapPool}
@@ -630,6 +654,44 @@ export default function LobbyRoom() {
                 )}
               </>
             )}
+            {/* Host server controls */}
+            {isCreator && lobby.matchSlug && lobby.server && !matchOver && (
+              <>
+                <Divider orientation="vertical" flexItem />
+                <Button
+                  variant="outlined"
+                  size="small"
+                  color="warning"
+                  onClick={async () => {
+                    try {
+                      await api.fetch(`/api/rcon/command`, {
+                        method: 'POST',
+                        body: JSON.stringify({ serverIds: [lobby.server!.id], command: 'custom', value: 'css_restart' }),
+                      });
+                      setSuccess('Server restarting...');
+                      setTimeout(() => setSuccess(''), 3000);
+                    } catch (err) { setError((err as Error).message); }
+                  }}
+                  disabled={executing}
+                >
+                  Reboot Server
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      await api.fetch(`/api/matches/${lobby.matchSlug}/load`, { method: 'POST' });
+                      setSuccess('Match config resent to server');
+                      setTimeout(() => setSuccess(''), 3000);
+                    } catch (err) { setError((err as Error).message); }
+                  }}
+                  disabled={executing}
+                >
+                  Resend Config
+                </Button>
+              </>
+            )}
             {/* Auto-assign — useful for all lobby creators */}
             {isCreator && lobby.status === 'waiting' && unassigned.length > 0 && (
               <Button variant="outlined" startIcon={<AutoFixHighIcon />} onClick={() => act('auto-assign')} disabled={executing}>Auto-assign Teams</Button>
@@ -721,6 +783,19 @@ export default function LobbyRoom() {
               Match Configuration {!isCreator && <Chip label="Host only" size="small" variant="outlined" sx={{ ml: 1, verticalAlign: 'middle' }} />}
             </Typography>
             <Stack spacing={3}>
+              {/* Names */}
+              <Box display="flex" gap={2} flexWrap="wrap">
+                <TextField label="Lobby Name" size="small" value={lobby.state.lobbyName || ''} disabled={!isCreator}
+                  placeholder={`${lobby.teamSize}v${lobby.teamSize} ${lobby.format.toUpperCase()}`}
+                  onChange={(e) => handleUpdateConfig({ lobbyName: e.target.value })} sx={{ flex: 1, minWidth: 150 }} />
+                <TextField label="Team 1 Name" size="small" value={lobby.state.team1Name || ''} disabled={!isCreator}
+                  placeholder={getTeamName('team1')}
+                  onChange={(e) => handleUpdateConfig({ team1Name: e.target.value })} sx={{ flex: 1, minWidth: 120 }} />
+                <TextField label="Team 2 Name" size="small" value={lobby.state.team2Name || ''} disabled={!isCreator}
+                  placeholder={getTeamName('team2')}
+                  onChange={(e) => handleUpdateConfig({ team2Name: e.target.value })} sx={{ flex: 1, minWidth: 120 }} />
+              </Box>
+
               {/* Row: Game Mode + Format + Team Size */}
               <Box display="flex" gap={2} flexWrap="wrap">
                 <FormControl size="small" sx={{ minWidth: 180, flex: 1 }}>
