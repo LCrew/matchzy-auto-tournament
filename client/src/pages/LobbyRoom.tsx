@@ -85,8 +85,10 @@ export default function LobbyRoom() {
   const [executing, setExecuting] = useState(false);
   const [forceServerId, setForceServerId] = useState('');
   const [confirmAction, setConfirmAction] = useState<{ type: string; title: string; message: string } | null>(null);
-  const [startMenuAnchor, setStartMenuAnchor] = useState<HTMLElement | null>(null);
-  const [playerMenuAnchor, setPlayerMenuAnchor] = useState<{ el: HTMLElement; steamId: string } | null>(null);
+  const [startMenuOpen, setStartMenuOpen] = useState(false);
+  const startMenuRef = React.useRef<HTMLElement | null>(null);
+  const [playerMenuSteamId, setPlayerMenuSteamId] = useState<string | null>(null);
+  const playerMenuRef = React.useRef<HTMLElement | null>(null);
   const [debugJson, setDebugJson] = useState<string | null>(null);
   useIsDevelopment(); // keep hook call order stable
   const { isRealAdmin } = useAuth();
@@ -297,7 +299,7 @@ export default function LobbyRoom() {
           <StarIcon sx={{ fontSize: 14, color: 'warning.main' }} />
         )}
         {isCreator && player.steamId !== playerSteamId && lobby.status === 'waiting' && (
-          <IconButton size="small" onClick={(e) => { e.stopPropagation(); setPlayerMenuAnchor({ el: e.currentTarget, steamId: player.steamId }); }}
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); playerMenuRef.current = e.currentTarget as HTMLElement; setPlayerMenuSteamId(player.steamId); }}
             sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
             <MoreVertIcon sx={{ fontSize: 18 }} />
           </IconButton>
@@ -477,7 +479,7 @@ export default function LobbyRoom() {
                   Start
                 </Button>
                 <Button
-                  onClick={(e) => setStartMenuAnchor(e.currentTarget)}
+                  onClick={(e) => { startMenuRef.current = e.currentTarget as HTMLElement; setStartMenuOpen(true); }}
                   disabled={executing}
                   sx={{ flex: 1, minWidth: 0, px: 0 }}
                 >
@@ -1011,60 +1013,59 @@ export default function LobbyRoom() {
       </Box>{/* end flex row */}
 
       {/* Start dropdown menu */}
-      <Menu anchorEl={startMenuAnchor} open={!!startMenuAnchor} onClose={() => setStartMenuAnchor(null)}
+      <Menu anchorEl={startMenuRef.current} open={startMenuOpen} onClose={() => { setStartMenuOpen(false); startMenuRef.current = null; }}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
         {vetoEnabled && (
-          <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }} disabled={lobby.mapPool.length < 2 || unassigned.length > 0}>
+          <MenuItem onClick={() => { setStartMenuOpen(false); handleStartVeto(); }} disabled={lobby.mapPool.length < 2 || unassigned.length > 0}>
             <ListItemIcon><PlayArrowIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Map Veto</ListItemText>
           </MenuItem>
         )}
         {!vetoEnabled && (
-          <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }} disabled={unassigned.length > 0}>
+          <MenuItem onClick={() => { setStartMenuOpen(false); handleStartVeto(); }} disabled={unassigned.length > 0}>
             <ListItemIcon><PlayArrowIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Start Match</ListItemText>
           </MenuItem>
         )}
         {lobby.state.captains.team1 && lobby.state.captains.team2 && unassigned.length > 0 && (
-          <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartDraft(); }}>
+          <MenuItem onClick={() => { setStartMenuOpen(false); handleStartDraft(); }}>
             <ListItemIcon><AutoFixHighIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Captain Draft</ListItemText>
           </MenuItem>
         )}
         <Divider />
-        <MenuItem onClick={() => { setStartMenuAnchor(null); handleStartVeto(); }} sx={{ color: 'warning.main' }}>
+        <MenuItem onClick={() => { setStartMenuOpen(false); handleStartVeto(); }} sx={{ color: 'warning.main' }}>
           <ListItemIcon><PlayArrowIcon fontSize="small" color="warning" /></ListItemIcon>
           <ListItemText>Force Start</ListItemText>
         </MenuItem>
       </Menu>
 
       {/* Player context menu */}
-      <Menu anchorEl={playerMenuAnchor?.el} open={!!playerMenuAnchor} onClose={() => setPlayerMenuAnchor(null)}>
-        <MenuItem onClick={() => { if (playerMenuAnchor) { handleSetCaptain(playerMenuAnchor.steamId, 'team1'); setPlayerMenuAnchor(null); } }}>
+      <Menu
+        anchorEl={playerMenuRef.current}
+        open={!!playerMenuSteamId}
+        onClose={() => { setPlayerMenuSteamId(null); playerMenuRef.current = null; }}
+      >
+        <MenuItem onClick={() => { if (playerMenuSteamId) { handleSetCaptain(playerMenuSteamId, 'team1'); } setPlayerMenuSteamId(null); }}>
           <ListItemIcon><StarIcon fontSize="small" sx={{ color: '#5B9BD5' }} /></ListItemIcon>
           <ListItemText>Captain Team 1</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => { if (playerMenuAnchor) { handleSetCaptain(playerMenuAnchor.steamId, 'team2'); setPlayerMenuAnchor(null); } }}>
+        <MenuItem onClick={() => { if (playerMenuSteamId) { handleSetCaptain(playerMenuSteamId, 'team2'); } setPlayerMenuSteamId(null); }}>
           <ListItemIcon><StarIcon fontSize="small" sx={{ color: '#FF6B57' }} /></ListItemIcon>
           <ListItemText>Captain Team 2</ListItemText>
         </MenuItem>
         <Divider />
-        <MenuItem onClick={() => { if (playerMenuAnchor) { handleTransferOwnership(playerMenuAnchor.steamId); setPlayerMenuAnchor(null); } }}>
+        <MenuItem onClick={() => { if (playerMenuSteamId) { handleTransferOwnership(playerMenuSteamId); } setPlayerMenuSteamId(null); }}>
           <ListItemIcon><SwapHorizIcon fontSize="small" /></ListItemIcon>
           <ListItemText>Transfer Host</ListItemText>
         </MenuItem>
         <Divider />
-        <MenuItem onClick={() => { if (playerMenuAnchor) { handleKick(playerMenuAnchor.steamId); setPlayerMenuAnchor(null); } }} sx={{ color: 'warning.main' }}>
+        <MenuItem onClick={() => { if (playerMenuSteamId) { handleKick(playerMenuSteamId); } setPlayerMenuSteamId(null); }} sx={{ color: 'warning.main' }}>
           <ListItemIcon><PersonRemoveIcon fontSize="small" color="warning" /></ListItemIcon>
           <ListItemText>Kick</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => {
-          if (playerMenuAnchor) {
-            act('kick', { targetId: playerMenuAnchor.steamId });
-            setPlayerMenuAnchor(null);
-          }
-        }} sx={{ color: 'error.main' }}>
+        <MenuItem onClick={() => { if (playerMenuSteamId) { act('kick', { targetId: playerMenuSteamId }); } setPlayerMenuSteamId(null); }} sx={{ color: 'error.main' }}>
           <ListItemIcon><BlockIcon fontSize="small" color="error" /></ListItemIcon>
           <ListItemText>Ban</ListItemText>
         </MenuItem>
