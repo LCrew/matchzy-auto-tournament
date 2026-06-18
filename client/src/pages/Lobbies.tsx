@@ -42,12 +42,6 @@ const MATCH_STATUS_LABEL: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
-const MATCH_STATUS_COLOR: Record<string, 'error' | 'info' | 'default' | 'warning'> = {
-  loaded: 'info',
-  live: 'error',
-  completed: 'default',
-  cancelled: 'default',
-};
 
 export default function Lobbies() {
   const navigate = useNavigate();
