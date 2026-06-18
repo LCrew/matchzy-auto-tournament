@@ -73,8 +73,9 @@ typography: {
       'sans-serif',
     ].join(','),
     button: {
+      fontFamily: '"Rajdhani", sans-serif',
       textTransform: 'none',
-      fontWeight: 500,
+      fontWeight: 600,
     },
     h1: { fontFamily: '"Rajdhani", sans-serif', fontWeight: 700, lineHeight: 1.1 },
     h2: { fontFamily: '"Rajdhani", sans-serif', fontWeight: 700, lineHeight: 1.1 },
@@ -188,7 +189,10 @@ typography: {
     },
     MuiChip: {
       styleOverrides: {
-        root: {},
+        root: {
+          fontFamily: '"Rajdhani", sans-serif',
+          fontWeight: 600,
+        },
       },
     },
     MuiListItemText: {
