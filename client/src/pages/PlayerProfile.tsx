@@ -233,6 +233,13 @@ function getFaceitBorderColor(level: number): string {
   return colors[level] || '#444';
 }
 
+function getFaceitTextColor(level: number): string {
+  if (level <= 1) return '#333';
+  if (level >= 4 && level <= 6) return '#1a1a00';
+  if (level >= 2 && level <= 3) return '#003300';
+  return '#fff';
+}
+
 export default function PlayerProfile() {
   type AssignedTeam = {
     id: string;
@@ -1019,7 +1026,7 @@ export default function PlayerProfile() {
                               fontWeight: 600,
                               fontSize: '0.9rem',
                               bgcolor: getFaceitColor(faceit.skillLevel),
-                              color: faceit.skillLevel === 1 ? '#333' : '#fff',
+                              color: getFaceitTextColor(faceit.skillLevel),
                               border: '2px solid',
                               borderColor: getFaceitBorderColor(faceit.skillLevel),
                             }}

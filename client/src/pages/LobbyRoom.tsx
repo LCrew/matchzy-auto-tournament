@@ -80,6 +80,13 @@ function getFaceitBorderColor(level: number): string {
   return colors[level] || '#444';
 }
 
+function getFaceitTextColor(level: number): string {
+  if (level <= 1) return '#333';
+  if (level >= 4 && level <= 6) return '#1a1a00';
+  if (level >= 2 && level <= 3) return '#003300';
+  return '#fff';
+}
+
 export default function LobbyRoom() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -272,7 +279,7 @@ export default function LobbyRoom() {
               fontWeight: 600,
               fontSize: '0.7rem',
               bgcolor: getFaceitColor(faceitData[player.steamId].skillLevel),
-              color: faceitData[player.steamId].skillLevel === 1 ? '#333' : '#fff',
+              color: getFaceitTextColor(faceitData[player.steamId].skillLevel),
               border: '2px solid',
               borderColor: getFaceitBorderColor(faceitData[player.steamId].skillLevel),
             }}
