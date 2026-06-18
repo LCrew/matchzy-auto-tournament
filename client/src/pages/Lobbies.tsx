@@ -158,7 +158,13 @@ export default function Lobbies() {
             const isInLobby = lobby.state.players.some((p) => p.steamId === playerSteamId);
             const isFinished = lobby.matchStatus === 'completed' || lobby.matchStatus === 'cancelled';
             const statusLabel = lobby.matchStatus ? MATCH_STATUS_LABEL[lobby.matchStatus] : STATUS_LABELS[lobby.status];
-            const statusColor = lobby.matchStatus ? (MATCH_STATUS_COLOR[lobby.matchStatus] || 'default') : (lobby.status === 'waiting' ? 'success' : 'warning');
+            const statusDotColor = lobby.matchStatus === 'live' ? '#EE4B2B'
+              : lobby.matchStatus === 'loaded' ? '#5B9BD5'
+              : lobby.matchStatus === 'completed' ? '#666'
+              : lobby.status === 'waiting' ? '#5FBF8F'
+              : lobby.status === 'veto' ? '#FFC800'
+              : lobby.status === 'picking' ? '#FF6309'
+              : '#8C95A3';
 
             return (
               <Card
@@ -189,7 +195,6 @@ export default function Lobbies() {
                             {lobby.state.lobbyName || `${lobby.teamSize}v${lobby.teamSize} ${lobby.format.toUpperCase()}`}
                           </Typography>
                           <Chip label={lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)} size="small" variant="outlined" sx={CHIP_SX} />
-                          <Chip label={statusLabel || lobby.status} color={statusColor} size="small" sx={CHIP_SX} />
                         </Box>
                         <Typography variant="body2" color="text.secondary">
                           {lobby.teamSize}v{lobby.teamSize} · Created by {lobby.state.players.find((p) => p.steamId === lobby.createdBy)?.name || 'Unknown'}
@@ -197,7 +202,26 @@ export default function Lobbies() {
                       </Box>
                     </Box>
 
-                    <Box display="flex" alignItems="center" gap={1.5}>
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <Box display="flex" alignItems="center" gap={0.75} sx={{ minWidth: 90 }}>
+                        <Box
+                          sx={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: statusDotColor,
+                            flexShrink: 0,
+                            animation: isFinished ? 'none' : 'dotPulse 2s ease-in-out infinite',
+                            '@keyframes dotPulse': {
+                              '0%, 100%': { opacity: 1 },
+                              '50%': { opacity: 0.3 },
+                            },
+                          }}
+                        />
+                        <Typography variant="body2" fontWeight={600} sx={{ color: statusDotColor }}>
+                          {statusLabel || lobby.status}
+                        </Typography>
+                      </Box>
                       <AvatarGroup max={6} sx={{ '& .MuiAvatar-root': { width: 30, height: 30, fontSize: 13, border: '2px solid', borderColor: 'background.paper' } }}>
                         {lobby.state.players.map((p) => (
                           <Avatar key={p.steamId} src={p.avatar} alt={p.name} sx={{ width: 30, height: 30 }}>
