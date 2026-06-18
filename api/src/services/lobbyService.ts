@@ -567,14 +567,21 @@ class LobbyService {
       [allPlayers[i], allPlayers[j]] = [allPlayers[j], allPlayers[i]];
     }
 
-    // Assign to teams round-robin
+    // Assign alternating: player 0 → team1, player 1 → team2, player 2 → team1, etc.
+    let t1Count = 0;
+    let t2Count = 0;
     for (let i = 0; i < allPlayers.length; i++) {
-      if (i < lobby.teamSize) {
-        allPlayers[i].team = 'team1';
-      } else if (i < lobby.teamSize * 2) {
-        allPlayers[i].team = 'team2';
-      } else {
+      if (t1Count >= lobby.teamSize && t2Count >= lobby.teamSize) {
         allPlayers[i].team = 'unassigned';
+      } else if (i % 2 === 0 && t1Count < lobby.teamSize) {
+        allPlayers[i].team = 'team1';
+        t1Count++;
+      } else if (t2Count < lobby.teamSize) {
+        allPlayers[i].team = 'team2';
+        t2Count++;
+      } else {
+        allPlayers[i].team = 'team1';
+        t1Count++;
       }
     }
 
