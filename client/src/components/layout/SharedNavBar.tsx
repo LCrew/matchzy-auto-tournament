@@ -318,7 +318,7 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
             </Button>
           ) : null}
         </Box>
-        {isDev && isRealAdmin && !viewAsUser && (
+        {import.meta.env.DEV && isRealAdmin && !viewAsUser && (
           <Tooltip title="View site as a regular player (non-admin)">
             <Chip
               icon={<VisibilityIcon sx={{ fontSize: 16 }} />}
@@ -331,7 +331,7 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
             />
           </Tooltip>
         )}
-        {viewAsUser && (
+        {import.meta.env.DEV && viewAsUser && (
           <Chip
             icon={<VisibilityIcon sx={{ fontSize: 16 }} />}
             label="Viewing as User"
