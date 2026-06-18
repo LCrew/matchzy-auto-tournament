@@ -182,7 +182,7 @@ export default function LobbyRoom() {
   const myCaptainTeam =
     lobby.state.captains.team1 === playerSteamId ? 'team1' :
     lobby.state.captains.team2 === playerSteamId ? 'team2' : null;
-  const matchOver = lobby.matchStatus === 'completed' || lobby.matchStatus === 'cancelled';
+  const matchOver = lobby.matchStatus === 'completed' || lobby.matchStatus === 'cancelled' || lobby.status === 'cancelled';
   const isMyVetoTurn = lobby.status === 'veto' && veto && !veto.completed && myCaptainTeam === veto.currentTurn;
 
   const team1Players = lobby.state.players.filter((p) => p.team === 'team1');
@@ -232,11 +232,12 @@ export default function LobbyRoom() {
       navigate('/lobby');
     } else if (confirmAction.type === 'end-match') {
       await rconCmd('css_restart', 'Match ended');
-      // Force-cancel the match and set lobby to cancelled
       if (lobby?.matchSlug) {
         try { await api.fetch(`/api/matches/${lobby.matchSlug}/force-cancel`, { method: 'POST' }); } catch { /* best effort */ }
       }
+      // Set lobby status to cancelled
       try { await api.fetch(`/api/lobbies/${id}`, { method: 'DELETE' }); } catch { /* best effort */ }
+      await loadLobby();
     } else if (confirmAction.type === 'cancel') {
       // If a match is running, force-cancel it on the server first
       if (lobby?.matchSlug) {
@@ -525,10 +526,12 @@ export default function LobbyRoom() {
 
 
       <Box display="flex" gap={3}>
-        {/* Sticky side panel */}
-        <Box sx={{ display: { xs: 'none', md: 'block' }, position: 'sticky', top: 80, alignSelf: 'flex-start' }}>
-          {sidePanelContent}
-        </Box>
+        {/* Sticky side panel — hidden when match is over */}
+        {!matchOver && (
+          <Box sx={{ display: { xs: 'none', md: 'block' }, position: 'sticky', top: 80, alignSelf: 'flex-start' }}>
+            {sidePanelContent}
+          </Box>
+        )}
 
         {/* Main content */}
         <Box flex={1} minWidth={0}>
@@ -884,9 +887,11 @@ export default function LobbyRoom() {
       )}
 
       {/* Mobile actions fallback */}
-      <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2 }}>
-        {sidePanelContent}
-      </Box>
+      {!matchOver && (
+        <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2 }}>
+          {sidePanelContent}
+        </Box>
+      )}
 
       {/* Debug JSON output */}
       {debugJson && (
