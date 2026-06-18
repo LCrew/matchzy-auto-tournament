@@ -44,7 +44,6 @@ export interface LobbyState {
     completed: boolean;
     turnDeadline?: number;
   };
-  pluginServer?: { id: string; name: string; host: string; port: number };
 }
 
 export interface LobbyRow {

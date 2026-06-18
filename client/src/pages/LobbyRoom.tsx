@@ -43,7 +43,6 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import CheckIcon from '@mui/icons-material/Check';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CloseIcon from '@mui/icons-material/Close';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import BlockIcon from '@mui/icons-material/Block';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 // Accordion removed — match controls inline in sidebar
@@ -184,8 +183,6 @@ export default function LobbyRoom() {
     lobby.state.captains.team1 === playerSteamId ? 'team1' :
     lobby.state.captains.team2 === playerSteamId ? 'team2' : null;
   const matchOver = lobby.matchStatus === 'completed' || lobby.matchStatus === 'cancelled' || lobby.status === 'cancelled';
-  const isCompetitive = lobby.gameMode === 'competitive';
-  const activeServer = lobby.server || lobby.state.pluginServer;
   const isMyVetoTurn = lobby.status === 'veto' && veto && !veto.completed && myCaptainTeam === veto.currentTurn;
 
   const team1Players = lobby.state.players.filter((p) => p.team === 'team1');
@@ -388,9 +385,9 @@ export default function LobbyRoom() {
   const SECTION = { fontSize: '0.65rem', fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase' as const, letterSpacing: '0.08em', mt: 1 };
 
   const rconCmd = async (cmd: string, successMsg: string) => {
-    if (!activeServer) return;
+    if (!lobby.server) return;
     try {
-      await api.fetch('/api/rcon/command', { method: 'POST', body: JSON.stringify({ serverIds: [activeServer.id], command: 'custom', value: cmd }) });
+      await api.fetch('/api/rcon/command', { method: 'POST', body: JSON.stringify({ serverIds: [lobby.server.id], command: 'custom', value: cmd }) });
       showSuccess(successMsg);
     } catch (err) { showError((err as Error).message); }
   };
@@ -456,7 +453,7 @@ export default function LobbyRoom() {
           )}
 
           {/* Match controls — when match is active */}
-          {isCreator && lobby.matchSlug && activeServer && !matchOver && (
+          {isCreator && lobby.matchSlug && lobby.server && !matchOver && (
             <>
               <Typography sx={SECTION}>Match</Typography>
               <Divider />
@@ -471,7 +468,7 @@ export default function LobbyRoom() {
           )}
 
           {/* Admin controls */}
-          {isCreator && lobby.matchSlug && activeServer && !matchOver && (
+          {isCreator && lobby.matchSlug && lobby.server && !matchOver && (
             <>
               <Typography sx={SECTION}>Admin</Typography>
               <Divider />
@@ -781,7 +778,7 @@ export default function LobbyRoom() {
       )}
 
       {/* Match Panel — shown when server is allocated */}
-      {activeServer && !matchOver && (
+      {lobby.server && !matchOver && (
         <Box sx={{ mb: 3 }}>
           <LobbyMatchPanel
             matchSlug={lobby.matchSlug}
@@ -790,7 +787,7 @@ export default function LobbyRoom() {
             team1Players={team1Players.map((p) => ({ steamId: p.steamId, name: p.name }))}
             team2Players={team2Players.map((p) => ({ steamId: p.steamId, name: p.name }))}
             maps={veto?.completed ? veto.pickedMaps : lobby.mapPool}
-            server={activeServer}
+            server={lobby.server}
             getMapName={getMapName}
             getMapImage={(mapId) => {
               const m = allMaps.find((am) => am.id === mapId);
@@ -800,54 +797,8 @@ export default function LobbyRoom() {
         </Box>
       )}
 
-      {/* Plugin mode — connect card with map */}
-      {!isCompetitive && activeServer && !matchOver && (
-        <Card sx={{ mb: 3, border: '1px solid', borderColor: 'divider' }}>
-          <CardContent>
-            <Box display="flex" flexDirection="column" gap={2}>
-              {/* Connect bar */}
-              <Box display="flex" gap={1} alignItems="center">
-                <Button
-                  variant="contained" color="primary"
-                  startIcon={<PlayArrowIcon />}
-                  href={`steam://connect/${activeServer.host}:${activeServer.port}`}
-                  sx={{ flex: 1, py: 1, fontWeight: 700, borderRadius: 2 }}
-                >
-                  Connect
-                </Button>
-                <Button
-                  variant="outlined" size="small"
-                  startIcon={<ContentCopyIcon />}
-                  onClick={() => { navigator.clipboard.writeText(`connect ${activeServer.host}:${activeServer.port}`); showSuccess('Copied!'); }}
-                  sx={{ borderRadius: 2, minWidth: 0, px: 1.5 }}
-                >
-                  {activeServer.host}:{activeServer.port}
-                </Button>
-              </Box>
-              <Typography variant="caption" color="text.secondary">
-                {activeServer.name} — {lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)}
-              </Typography>
-              {/* Map image */}
-              {lobby.mapPool[0] && (
-                <Box sx={{
-                  position: 'relative', borderRadius: 2, overflow: 'hidden', height: 140,
-                  backgroundImage: `url(${allMaps.find(m => m.id === lobby.mapPool[0])?.imageUrl || `https://raw.githubusercontent.com/sivert-io/cs2-server-manager/master/map_thumbnails/${lobby.mapPool[0]}.webp`})`,
-                  backgroundSize: 'cover', backgroundPosition: 'center',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.4)' }} />
-                  <Typography variant="h4" fontWeight={700} sx={{ position: 'relative', color: '#fff', textShadow: '2px 2px 8px rgba(0,0,0,0.8)' }}>
-                    {getMapName(lobby.mapPool[0])}
-                  </Typography>
-                </Box>
-              )}
-            </Box>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Ready but no server yet */}
-      {lobby.status === 'ready' && !activeServer && !lobby.matchSlug && (
+      {lobby.status === 'ready' && !lobby.server && !lobby.matchSlug && (
         <Card sx={{ mb: 3 }}>
           <CardContent sx={{ textAlign: 'center', py: 3 }}>
             <Typography variant="h6" fontWeight={700} gutterBottom>
@@ -890,7 +841,7 @@ export default function LobbyRoom() {
       )}
 
       {/* Match created, waiting for server */}
-      {lobby.matchSlug && !activeServer && (
+      {lobby.matchSlug && !lobby.server && (
         <Card sx={{ mb: 3 }}>
           <CardContent sx={{ textAlign: 'center', py: 3 }}>
             <Typography variant="h6" fontWeight={700} gutterBottom>Allocating Server...</Typography>

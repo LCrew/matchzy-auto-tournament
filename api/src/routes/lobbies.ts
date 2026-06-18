@@ -63,10 +63,6 @@ router.get('/game-modes', async (_req: Request, res: Response) => {
       { id: 'competitive', name: 'Competitive', commands: [] },
       { id: 'deathmatch', name: 'Deathmatch', commands: ['game_type 1; game_mode 2'] },
       { id: 'gungame', name: 'Gun Game', commands: ['game_type 1; game_mode 0'] },
-      { id: 'wingman', name: 'Wingman', commands: ['game_type 0; game_mode 2'] },
-      { id: 'retakes', name: 'Retakes', commands: ['css_plugins load Retakes'] },
-      { id: 'arenas', name: 'K4-Arena', commands: ['css_plugins load K4-Arenas'] },
-      { id: 'executes', name: 'Executes', commands: ['css_plugins load Executes'] },
     ];
     const rows = await db.queryAsync<{ id: string; name: string; commands: string }>(
       'SELECT id, name, commands FROM game_modes ORDER BY created_at'
