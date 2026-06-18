@@ -264,8 +264,13 @@ export default function LobbyRoom() {
         <Avatar src={player.avatar} alt={player.name} sx={{ width: 36, height: 36 }}>
           {player.name[0]}
         </Avatar>
-        <Box flex={1} minWidth={0}>
+        <Box flex={1} minWidth={0} display="flex" alignItems="center" gap={0.75}>
           <Typography variant="body2" fontWeight={600} noWrap>{player.name}</Typography>
+          {isHost && (
+            <Typography variant="caption" sx={{ fontFamily: '"Rajdhani", sans-serif', color: 'text.disabled', fontWeight: 600, fontSize: '0.7rem' }}>
+              Host
+            </Typography>
+          )}
         </Box>
         {faceitData[player.steamId] && (
           <Box display="flex" alignItems="center" gap={0.5} sx={{ mr: 0.5 }}>
@@ -285,7 +290,6 @@ export default function LobbyRoom() {
             <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />
           </Tooltip>
         )}
-        {isHost && <Chip label="Host" size="small" variant="outlined" />}
         {isCreator && !isHost && player.team === 'unassigned' && lobby.status === 'waiting' && (
           <Tooltip title="Transfer host">
             <Button variant="outlined" color="warning" onClick={(e) => { e.stopPropagation(); handleTransferOwnership(player.steamId); }} sx={{ height: 28, fontSize: '0.7rem' }}>
