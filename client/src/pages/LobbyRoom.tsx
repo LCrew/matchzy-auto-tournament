@@ -278,11 +278,15 @@ export default function LobbyRoom() {
             }}
           />
         )}
-        {player.isCaptain && <Chip icon={<StarIcon sx={{ fontSize: 14 }} />} label="C" size="small" color="warning" variant="outlined" sx={{ minWidth: 0, '& .MuiChip-label': { px: 0.5 } }} />}
+        {player.isCaptain && (
+          <Tooltip title="Captain">
+            <StarIcon sx={{ fontSize: 16, color: 'warning.main' }} />
+          </Tooltip>
+        )}
         {isHost && <Chip label="Host" size="small" variant="outlined" />}
         {isCreator && !isHost && player.team === 'unassigned' && lobby.status === 'waiting' && (
           <Tooltip title="Transfer host">
-            <Button size="small" variant="outlined" color="warning" onClick={(e) => { e.stopPropagation(); handleTransferOwnership(player.steamId); }} sx={{ fontSize: '0.7rem', py: 0.25 }}>
+            <Button variant="outlined" color="warning" onClick={(e) => { e.stopPropagation(); handleTransferOwnership(player.steamId); }} sx={{ height: 28, fontSize: '0.7rem' }}>
               Transfer Host
             </Button>
           </Tooltip>
@@ -469,12 +473,12 @@ export default function LobbyRoom() {
           {lobby.status === 'waiting' && (
             <Box sx={{ mt: 1.5, display: 'flex', gap: 1 }}>
               {me && me.team !== 'unassigned' && !me.isCaptain && (
-                <Button variant="outlined" size="small" onClick={() => handleJoinTeam('unassigned')}>
+                <Button variant="outlined" onClick={() => handleJoinTeam('unassigned')} sx={{ height: 36 }}>
                   Move to Spectators
                 </Button>
               )}
               {!me && (
-                <Button variant="outlined" size="small" onClick={() => handleJoinTeam('unassigned')}>
+                <Button variant="outlined" onClick={() => handleJoinTeam('unassigned')} sx={{ height: 36 }}>
                   Join as Spectator
                 </Button>
               )}
@@ -752,7 +756,7 @@ export default function LobbyRoom() {
                 <Divider orientation="vertical" flexItem />
                 <Chip label="DEV" size="small" color="warning" />
                 {lobby.status === 'waiting' && (
-                  <Button variant="outlined" color="warning" startIcon={<SmartToyIcon />} onClick={() => act('fill-bots')} disabled={executing || lobby.state.players.length >= maxPlayers}>Fill with Bots</Button>
+                  <Button variant="outlined" color="warning" startIcon={<SmartToyIcon />} onClick={() => act('fill-bots')} disabled={executing || lobby.state.players.length >= maxPlayers} sx={{ height: 40 }}>Fill with Bots</Button>
                 )}
                 {lobby.matchSlug && (
                   <Button

@@ -261,7 +261,6 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
           </Button>
           <Button
             color="primary"
-            variant="outlined"
             component={RouterLink}
             to="/lobby"
             size="small"
@@ -272,7 +271,6 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
           </Button>
           <Button
             color="primary"
-            variant="outlined"
             component={RouterLink}
             to="/inventory"
             size="small"
@@ -296,7 +294,7 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
           {ctaLabel ? (
             <Button
               component={RouterLink}
-              to={`/player/${playerSteamId}`}
+              to={matchStatusLabel === 'match_ready' ? '/lobby' : `/player/${playerSteamId}`}
               variant="contained"
               color="primary"
               size="small"
