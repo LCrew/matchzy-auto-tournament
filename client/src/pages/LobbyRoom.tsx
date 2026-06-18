@@ -188,8 +188,10 @@ export default function LobbyRoom() {
   const unassigned = lobby.state.players.filter((p) => p.team === 'unassigned');
   const maxPlayers = lobby.teamSize * 2;
 
+  const quickActions = new Set(['join-team', 'set-captain', 'kick', 'shuffle-teams', 'auto-assign']);
+
   const act = async (action: string, body?: Record<string, unknown>) => {
-    setExecuting(true);
+    if (!quickActions.has(action)) setExecuting(true);
     setError('');
     try {
       const endpoint = `/api/lobbies/${id}/${action}`;
@@ -370,8 +372,8 @@ export default function LobbyRoom() {
   };
 
   // Sidebar panel (sticky, follows scroll)
-  const SidePanel = () => (
-    <Card sx={{ position: 'sticky', top: 80, width: 200, flexShrink: 0, alignSelf: 'flex-start' }}>
+  const sidePanelContent = (
+    <Card sx={{ width: 200, flexShrink: 0 }}>
       <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
         <Stack spacing={1}>
           {/* Leave + Cancel */}
@@ -500,8 +502,8 @@ export default function LobbyRoom() {
 
       <Box display="flex" gap={3}>
         {/* Sticky side panel */}
-        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-          <SidePanel />
+        <Box sx={{ display: { xs: 'none', md: 'block' }, position: 'sticky', top: 80, alignSelf: 'flex-start' }}>
+          {sidePanelContent}
         </Box>
 
         {/* Main content */}
@@ -842,7 +844,7 @@ export default function LobbyRoom() {
 
       {/* Mobile actions fallback */}
       <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2 }}>
-        <SidePanel />
+        {sidePanelContent}
       </Box>
 
       {/* Debug JSON output */}
