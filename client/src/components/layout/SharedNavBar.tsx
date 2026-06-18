@@ -194,42 +194,7 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
     return () => { mounted = false; clearInterval(interval); };
   }, [playerSteamId]);
 
-  const ctaLabels: Record<string, string> = {
-    your_turn_veto: t('nav.matchStatus.yourTurnVeto'),
-    waiting_veto: t('nav.matchStatus.waitingVeto'),
-    waiting_server: t('nav.matchStatus.waitingServer'),
-    match_ready: t('nav.matchStatus.matchReady'),
-  };
-
-  // Lobby-based CTA takes priority
-  const lobbyCtaLabel = activeLobby ? (
-    activeLobby.matchStatus === 'live' || activeLobby.matchStatus === 'loaded'
-      ? 'Connect'
-      : activeLobby.status === 'veto'
-        ? 'Map Veto'
-        : activeLobby.status === 'waiting'
-          ? 'Waiting...'
-          : activeLobby.status === 'picking'
-            ? 'Drafting...'
-            : activeLobby.status === 'ready'
-              ? 'Ready'
-              : null
-  ) : null;
-
-  const lobbyCtaColor = activeLobby?.matchStatus === 'live' || activeLobby?.matchStatus === 'loaded'
-    ? 'success' as const
-    : activeLobby?.status === 'veto'
-      ? 'warning' as const
-      : 'primary' as const;
-
-  const lobbyCtaShimmer = activeLobby?.status === 'waiting';
-
-  const ctaLabel = lobbyCtaLabel || (
-    playerSteamId &&
-    matchStatus !== 'none' &&
-    matchStatusLabel &&
-    ctaLabels[matchStatusLabel]
-  );
+  void matchStatus; void matchStatusLabel; // kept for snackbar notifications above
 
   return (
     <>
@@ -328,37 +293,18 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
       </Box>
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        {/* Reserve space for CTA so match-status changes don't "jump" the header layout */}
-        <Box
-          sx={{
-            display: { xs: 'none', sm: 'flex' },
-            alignItems: 'center',
-            minWidth: 210,
-          }}
-        >
-          {ctaLabel ? (
+        <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center' }}>
+          {activeLobby ? (
             <Button
               component={RouterLink}
-              to={activeLobby ? `/lobby/${activeLobby.id}` : `/player/${playerSteamId}`}
+              to={`/lobby/${activeLobby.id}`}
               variant="contained"
-              color={lobbyCtaLabel ? lobbyCtaColor : 'primary'}
+              color="primary"
               size="small"
               startIcon={<SportsEsportsIcon />}
-              sx={{
-                fontWeight: 600,
-                textTransform: 'none',
-                px: 2,
-                minWidth: 140,
-                ...(lobbyCtaShimmer ? {
-                  animation: 'shimmer 2s ease-in-out infinite',
-                  '@keyframes shimmer': {
-                    '0%, 100%': { opacity: 1 },
-                    '50%': { opacity: 0.6 },
-                  },
-                } : {}),
-              }}
+              sx={{ fontWeight: 600, textTransform: 'none', px: 2 }}
             >
-              {ctaLabel}
+              Return to Lobby
             </Button>
           ) : null}
         </Box>
