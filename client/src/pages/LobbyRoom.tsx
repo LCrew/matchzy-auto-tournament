@@ -445,10 +445,10 @@ export default function LobbyRoom() {
             </>
           )}
 
-          {/* Auto-assign */}
-          {isCreator && lobby.status === 'waiting' && unassigned.length > 0 && (
-            <Button variant="outlined" fullWidth size="small" onClick={() => act('auto-assign')} disabled={executing} sx={{ height: 36 }}>
-              Auto-assign
+          {/* Shuffle Teams */}
+          {isCreator && lobby.status === 'waiting' && (
+            <Button variant="outlined" fullWidth size="small" onClick={() => act('shuffle-teams')} disabled={executing} sx={{ height: 36 }}>
+              Shuffle Teams
             </Button>
           )}
 

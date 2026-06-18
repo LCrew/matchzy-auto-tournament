@@ -445,6 +445,18 @@ router.post('/:id/auto-assign', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/:id/shuffle-teams', async (req: Request, res: Response) => {
+  try {
+    const player = await requirePlayer(req, res);
+    if (!player) return;
+    const lobby = await lobbyService.shuffleTeams(req.params.id, player.steamId);
+    return res.json({ success: true, lobby });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Failed to shuffle teams';
+    return res.status(400).json({ success: false, error: msg });
+  }
+});
+
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const player = await requirePlayer(req, res);

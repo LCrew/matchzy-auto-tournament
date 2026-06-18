@@ -546,6 +546,49 @@ class LobbyService {
     return this.saveState(id, state);
   }
 
+  async shuffleTeams(id: string, requesterId: string): Promise<LobbyResponse> {
+    const lobby = await this.getById(id);
+    if (!lobby) throw new Error('Lobby not found');
+    if (lobby.createdBy !== requesterId) throw new Error('Only the lobby creator can shuffle teams');
+    if (lobby.status !== 'waiting') throw new Error('Can only shuffle in waiting phase');
+
+    const state = lobby.state;
+
+    // Reset all captain flags
+    for (const p of state.players) {
+      p.isCaptain = false;
+    }
+    state.captains = {};
+
+    // Shuffle all non-spectator-only players into teams randomly
+    const allPlayers = [...state.players];
+    for (let i = allPlayers.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allPlayers[i], allPlayers[j]] = [allPlayers[j], allPlayers[i]];
+    }
+
+    // Assign to teams round-robin
+    for (let i = 0; i < allPlayers.length; i++) {
+      if (i < lobby.teamSize) {
+        allPlayers[i].team = 'team1';
+      } else if (i < lobby.teamSize * 2) {
+        allPlayers[i].team = 'team2';
+      } else {
+        allPlayers[i].team = 'unassigned';
+      }
+    }
+
+    state.players = allPlayers;
+
+    // Set first player on each team as captain
+    const t1 = state.players.find((p) => p.team === 'team1');
+    if (t1) { state.captains.team1 = t1.steamId; t1.isCaptain = true; }
+    const t2 = state.players.find((p) => p.team === 'team2');
+    if (t2) { state.captains.team2 = t2.steamId; t2.isCaptain = true; }
+
+    return this.saveState(id, state);
+  }
+
   async transferOwnership(id: string, requesterId: string, newOwnerId: string): Promise<LobbyResponse> {
     const lobby = await this.getById(id);
     if (!lobby) throw new Error('Lobby not found');
