@@ -6,6 +6,7 @@ import { matchAllocationService } from './matchAllocationService';
 import { loadMatchOnServer } from './matchLoadingService';
 import { serverAllocationTracker } from './serverAllocationTracker';
 import { serverService } from './serverService';
+import { serverInitializationService } from './serverInitializationService';
 import { settingsService } from './settingsService';
 import { matchzyConfigService } from './matchzyConfigService';
 import { rconService } from './rconService';
@@ -850,6 +851,8 @@ class LobbyService {
     };
     const commands = modeRow ? JSON.parse(modeRow.commands) as string[] : (builtInCommands[lobby.gameMode] || []);
 
+    const needsMatchzy = lobby.gameMode === 'practice' || lobby.gameMode === 'retake';
+
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
     try {
@@ -859,18 +862,27 @@ class LobbyService {
       await rconService.sendCommand(serverId, 'css_restart');
       await delay(1000);
 
-      // Send game mode commands
+      if (needsMatchzy) {
+        await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
+        await delay(500);
+        await rconService.sendCommand(serverId, 'css_plugins load MatchZy');
+        await delay(500);
+
+        // Send persistent config (webhook URL, auth tokens, etc.)
+        await serverInitializationService.initializeServer(serverId, baseUrl);
+      }
+
+      // Change to selected map first (some modes need the map loaded before commands)
+      const firstMap = maps[0];
+      if (firstMap) {
+        await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
+        await delay(5000);
+      }
+
+      // Send game mode commands after map is loaded
       for (const cmd of commands) {
         await rconService.sendCommand(serverId, cmd);
         await delay(500);
-      }
-
-      // Change to selected map (some modes change map themselves, but ensure correct map)
-      const firstMap = maps[0];
-      if (firstMap) {
-        await delay(2000);
-        await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
-        await delay(3000);
       }
 
       // Mark as loaded
