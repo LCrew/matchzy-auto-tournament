@@ -8,9 +8,12 @@ import { serverAllocationTracker } from './serverAllocationTracker';
 import { serverService } from './serverService';
 import { settingsService } from './settingsService';
 import { matchzyConfigService } from './matchzyConfigService';
+import { rconService } from './rconService';
 import { emitMatchUpdate, emitBracketUpdate } from './socketService';
 import { log } from '../utils/logger';
 import type { CreateMatchInput, MatchConfig, MatchPlayer } from '../types/match.types';
+
+const MATCHZY_MODES = new Set(['competitive', 'clownmode']);
 
 function generateId(): string {
   return `lobby-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -692,6 +695,34 @@ class LobbyService {
     if (maps.length === 0) throw new Error('No maps selected');
 
     const slug = `lobby-${id.replace('lobby-', '')}`;
+
+    const isMatchzyMode = MATCHZY_MODES.has(lobby.gameMode);
+
+    if (isMatchzyMode) {
+      await this.createMatchzyMatch(id, lobby, state, slug, maps, t1, t2, baseUrl, forceServerId);
+    } else {
+      await this.createPluginMatch(id, lobby, slug, maps, baseUrl, forceServerId);
+    }
+
+    // Fun plugin management: enable for clownmode, disable for everything else
+    await this.sendPostLoadCommands(id, slug, lobby.gameMode);
+
+    const updated = (await this.getById(id))!;
+    emitLobbyUpdate(updated);
+    return updated;
+  }
+
+  private async createMatchzyMatch(
+    lobbyId: string,
+    lobby: LobbyResponse,
+    state: LobbyState,
+    slug: string,
+    maps: string[],
+    t1: LobbyState['players'],
+    t2: LobbyState['players'],
+    baseUrl: string,
+    forceServerId?: string,
+  ): Promise<void> {
     const team1PlayerMap: MatchPlayer = {};
     const team2PlayerMap: MatchPlayer = {};
     const spectatorMap: MatchPlayer = {};
@@ -701,14 +732,9 @@ class LobbyService {
     spectators.forEach((p) => { spectatorMap[p.steamId] = p.name; });
 
     const numMaps = maps.length;
-
-    // Knife round for every map (like tournament matches)
     const mapSides: Array<'knife'> = Array.from({ length: numMaps }, () => 'knife');
 
-    // Get MatchZy Enhanced cvars (autoready, pause limits, etc.)
     const matchzyEnhancedCvars = await matchzyConfigService.generateMatchzyEnhancedCvars('single_elimination');
-
-    // Get min_players_to_ready setting
     const minPlayersToReadyRaw = await settingsService.getMatchzyMinimumReadyRequired();
     const minPlayersToReady = Math.max(0, Math.min(lobby.teamSize, minPlayersToReadyRaw));
 
@@ -727,6 +753,7 @@ class LobbyService {
       spectators: { players: spectatorMap },
       cvars: {
         mp_maxrounds: 24,
+        matchzy_show_credits_on_match_start: 0,
         ...matchzyEnhancedCvars,
       },
     };
@@ -737,10 +764,9 @@ class LobbyService {
     await db.updateAsync('lobbies', {
       match_slug: slug,
       updated_at: Math.floor(Date.now() / 1000),
-    }, 'id = ?', [id]);
+    }, 'id = ?', [lobbyId]);
 
     if (forceServerId) {
-      // Force-assign specific server, bypassing all availability checks
       const server = await serverService.getServerById(forceServerId);
       if (!server) throw new Error(`Server '${forceServerId}' not found`);
       serverAllocationTracker.markAllocated(forceServerId, slug);
@@ -752,23 +778,134 @@ class LobbyService {
       } else {
         await db.updateAsync('matches', { server_id: null }, 'slug = ?', [slug]);
         serverAllocationTracker.markIdle(forceServerId);
-        log.warn(`Lobby ${id}: force-allocation to ${forceServerId} failed: ${loadResult.error}`);
+        log.warn(`Lobby ${lobbyId}: force-allocation to ${forceServerId} failed: ${loadResult.error}`);
       }
     } else {
-      // Auto-allocate server
       try {
         const allocation = await matchAllocationService.allocateSingleMatch(slug, baseUrl);
         if (!allocation.success) {
-          log.warn(`Lobby ${id}: auto-allocation failed: ${allocation.error}`);
+          log.warn(`Lobby ${lobbyId}: auto-allocation failed: ${allocation.error}`);
         }
       } catch (err) {
-        log.warn(`Lobby ${id}: auto-allocation threw`, err as Error);
+        log.warn(`Lobby ${lobbyId}: auto-allocation threw`, err as Error);
+      }
+    }
+  }
+
+  private async createPluginMatch(
+    lobbyId: string,
+    lobby: LobbyResponse,
+    slug: string,
+    maps: string[],
+    baseUrl: string,
+    forceServerId?: string,
+  ): Promise<void> {
+    // Plugin modes (retake, deathmatch, gungame) — create a minimal match record
+    // for server tracking but skip MatchZy config loading.
+    const now = Math.floor(Date.now() / 1000);
+
+    await db.insertAsync('matches', {
+      slug,
+      round: 0,
+      match_number: 0,
+      status: 'pending',
+      config: JSON.stringify({ maplist: maps, matchid: Date.now() }),
+      created_at: now,
+    });
+
+    await db.updateAsync('lobbies', {
+      match_slug: slug,
+      updated_at: now,
+    }, 'id = ?', [lobbyId]);
+
+    // Find a server — force or auto
+    let serverId: string | null = null;
+    if (forceServerId) {
+      const server = await serverService.getServerById(forceServerId);
+      if (!server) throw new Error(`Server '${forceServerId}' not found`);
+      serverId = forceServerId;
+    } else {
+      const servers = await matchAllocationService.getAvailableServers();
+      if (servers.length > 0) {
+        serverId = servers[0].id;
       }
     }
 
-    const updated = (await this.getById(id))!;
-    emitLobbyUpdate(updated);
-    return updated;
+    if (!serverId) {
+      log.warn(`Lobby ${lobbyId}: no available server for plugin mode`);
+      return;
+    }
+
+    serverAllocationTracker.markAllocated(serverId, slug);
+    await db.updateAsync('matches', { server_id: serverId }, 'slug = ?', [slug]);
+
+    // Fetch game mode commands
+    const modeRow = await db.queryOneAsync<{ commands: string }>('SELECT commands FROM game_modes WHERE id = ?', [lobby.gameMode]);
+    const builtInCommands: Record<string, string[]> = {
+      retake: ['css_gamemode retake'],
+      deathmatch: ['game_type 1', 'game_mode 2'],
+      gungame: ['game_type 1', 'game_mode 0'],
+    };
+    const commands = modeRow ? JSON.parse(modeRow.commands) as string[] : (builtInCommands[lobby.gameMode] || []);
+
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    try {
+      log.info(`[PLUGIN MODE] Loading ${lobby.gameMode} on server ${serverId}`);
+
+      // Reset server state
+      await rconService.sendCommand(serverId, 'css_restart');
+      await delay(1000);
+
+      // Send game mode commands
+      for (const cmd of commands) {
+        await rconService.sendCommand(serverId, cmd);
+        await delay(500);
+      }
+
+      // Change to selected map (some modes change map themselves, but ensure correct map)
+      const firstMap = maps[0];
+      if (firstMap) {
+        await delay(2000);
+        await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
+        await delay(3000);
+      }
+
+      // Mark as loaded
+      await db.updateAsync('matches', {
+        status: 'loaded',
+        loaded_at: now,
+      }, 'slug = ?', [slug]);
+
+      emitMatchUpdate({ slug, serverId } as never);
+      emitBracketUpdate({ action: 'server_assigned', matchSlug: slug, serverId });
+      log.success(`[PLUGIN MODE] ${lobby.gameMode} loaded on server ${serverId}`);
+    } catch (err) {
+      await db.updateAsync('matches', { server_id: null }, 'slug = ?', [slug]);
+      serverAllocationTracker.markIdle(serverId);
+      log.warn(`Lobby ${lobbyId}: plugin mode load failed`, err as Error);
+    }
+  }
+
+  private async sendPostLoadCommands(lobbyId: string, slug: string, gameMode: string): Promise<void> {
+    const match = await db.queryOneAsync<{ server_id: string }>('SELECT server_id FROM matches WHERE slug = ?', [slug]);
+    if (!match?.server_id) return;
+
+    const serverId = match.server_id;
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    try {
+      if (gameMode === 'clownmode') {
+        log.info(`[POST-LOAD] Enabling fun plugin on server ${serverId}`);
+        await rconService.sendCommand(serverId, 'exec settings/enable_fun.cfg');
+      } else {
+        log.info(`[POST-LOAD] Disabling fun plugin on server ${serverId}`);
+        await rconService.sendCommand(serverId, 'exec settings/disable_fun.cfg');
+      }
+      await delay(200);
+    } catch (err) {
+      log.warn(`Lobby ${lobbyId}: post-load commands failed (non-fatal)`, err as Error);
+    }
   }
 
   async cancel(id: string, requesterId: string, isAdmin = false): Promise<void> {

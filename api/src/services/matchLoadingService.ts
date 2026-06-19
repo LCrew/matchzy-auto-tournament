@@ -111,6 +111,8 @@ export async function loadMatchOnServer(
       log.info(`[MATCH LOADING] Resetting server ${serverId} to competitive mode`);
       await rconService.sendCommand(serverId, 'css_restart');
       await delay(1000);
+      await rconService.sendCommand(serverId, 'exec settings/disable_fun.cfg');
+      await delay(200);
       await rconService.sendCommand(serverId, 'game_type 0');
       await delay(200);
       await rconService.sendCommand(serverId, 'game_mode 1');

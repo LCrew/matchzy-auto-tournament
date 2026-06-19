@@ -61,6 +61,8 @@ router.get('/game-modes', async (_req: Request, res: Response) => {
   try {
     const builtIn = [
       { id: 'competitive', name: 'Competitive', commands: [] },
+      { id: 'clownmode', name: 'Clownmode', commands: [] },
+      { id: 'retake', name: 'Retake', commands: ['css_gamemode retake'] },
       { id: 'deathmatch', name: 'Deathmatch', commands: ['game_type 1; game_mode 2'] },
       { id: 'gungame', name: 'Gun Game', commands: ['game_type 1; game_mode 0'] },
     ];

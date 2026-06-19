@@ -103,6 +103,11 @@ class MatchService {
       );
     }
 
+    config.cvars = {
+      matchzy_show_credits_on_match_start: 0,
+      ...(config.cvars || {}),
+    };
+
     // Always attach current admin Steam64 IDs to manual match configs so they
     // have in‑game admin rights just like tournament-generated matches.
     try {

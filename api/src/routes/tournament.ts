@@ -1580,6 +1580,7 @@ router.post('/:id/manual-matches', async (req: Request, res: Response) => {
 
       const cvars: Record<string, string | number> = {
         mp_maxrounds: resolvedMaxRounds,
+        matchzy_show_credits_on_match_start: 0,
       };
 
       const team1Id = `shuffle-r0-m${index + 1}-team1`;
