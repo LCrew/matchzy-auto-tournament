@@ -380,6 +380,7 @@ export interface MapPool {
   mapIds: string[];
   isDefault: boolean;
   enabled: boolean;
+  gameModes: string[] | null;
   createdAt: number;
   updatedAt: number;
 }

@@ -38,6 +38,7 @@ export interface LobbyState {
   lobbyName?: string;
   team1Name?: string;
   team2Name?: string;
+  friendlyFire?: boolean;
   players: LobbyPlayer[];
   captains: {
     team1?: string;

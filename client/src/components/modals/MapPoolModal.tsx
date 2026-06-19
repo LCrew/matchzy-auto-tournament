@@ -28,10 +28,13 @@ interface MapPoolModalProps {
 export default function MapPoolModal({ open, mapPool, onClose, onSave }: MapPoolModalProps) {
   const [name, setName] = useState('');
   const [selectedMapIds, setSelectedMapIds] = useState<string[]>([]);
+  const [selectedGameModes, setSelectedGameModes] = useState<string[]>([]);
   const [availableMaps, setAvailableMaps] = useState<Map[]>([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingMaps, setLoadingMaps] = useState(true);
+
+  const ALL_GAME_MODES = ['competitive', 'clownmode', 'wingman', 'practice', 'retake', 'deathmatch', 'gungame'];
 
   const isEditing = !!mapPool;
 
@@ -41,6 +44,7 @@ export default function MapPoolModal({ open, mapPool, onClose, onSave }: MapPool
       if (mapPool) {
         setName(mapPool.name);
         setSelectedMapIds(mapPool.mapIds ?? []);
+        setSelectedGameModes(mapPool.gameModes ?? []);
       } else {
         resetForm();
       }
@@ -63,6 +67,7 @@ export default function MapPoolModal({ open, mapPool, onClose, onSave }: MapPool
   const resetForm = () => {
     setName('');
     setSelectedMapIds([]);
+    setSelectedGameModes([]);
     setError('');
   };
 
@@ -118,6 +123,7 @@ export default function MapPoolModal({ open, mapPool, onClose, onSave }: MapPool
       const payload = {
         name: name.trim(),
         mapIds: selectedMapIds,
+        gameModes: selectedGameModes.length > 0 ? selectedGameModes : null,
       };
 
       if (isEditing) {
@@ -246,6 +252,33 @@ export default function MapPoolModal({ open, mapPool, onClose, onSave }: MapPool
                 }
               />
             )}
+          </Box>
+
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Game Modes (empty = all modes)
+            </Typography>
+            <Autocomplete
+              multiple
+              options={ALL_GAME_MODES}
+              value={selectedGameModes}
+              onChange={(_, newValue) => setSelectedGameModes(newValue)}
+              disableCloseOnSelect
+              getOptionLabel={(option) => option.charAt(0).toUpperCase() + option.slice(1)}
+              renderInput={(params) => <TextField {...params} placeholder="All modes" />}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    label={option.charAt(0).toUpperCase() + option.slice(1)}
+                    {...getTagProps({ index })}
+                    key={option}
+                    size="small"
+                    color="info"
+                    variant="outlined"
+                  />
+                ))
+              }
+            />
           </Box>
 
           {error && (

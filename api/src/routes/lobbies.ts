@@ -156,15 +156,20 @@ router.get('/maps', async (_req: Request, res: Response) => {
 
 router.get('/map-pools', async (_req: Request, res: Response) => {
   try {
-    const rows = await db.queryAsync<{ id: number; name: string; map_ids: string; is_default: number }>(
-      'SELECT id, name, map_ids, is_default FROM map_pools WHERE enabled = 1 ORDER BY is_default DESC, name'
+    const rows = await db.queryAsync<{ id: number; name: string; map_ids: string; is_default: number; game_modes: string | null }>(
+      'SELECT id, name, map_ids, is_default, game_modes FROM map_pools WHERE enabled = 1 ORDER BY is_default DESC, name'
     );
-    const mapPools = rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      maps: JSON.parse(r.map_ids || '[]'),
-      isDefault: r.is_default === 1,
-    }));
+    const mapPools = rows.map((r) => {
+      let gameModes: string[] | null = null;
+      if (r.game_modes) { try { gameModes = JSON.parse(r.game_modes); } catch { /* ignore */ } }
+      return {
+        id: r.id,
+        name: r.name,
+        maps: JSON.parse(r.map_ids || '[]'),
+        isDefault: r.is_default === 1,
+        gameModes,
+      };
+    });
     return res.json({ success: true, mapPools });
   } catch (error) {
     log.error('Failed to list map pools', error);
@@ -375,8 +380,8 @@ router.post('/:id/update-config', async (req: Request, res: Response) => {
   try {
     const player = await requirePlayer(req, res);
     if (!player) return;
-    const { gameMode, mapPool, format, teamSize, lobbyName, team1Name, team2Name } = req.body;
-    const lobby = await lobbyService.updateConfig(req.params.id, player.steamId, { gameMode, mapPool, format, teamSize, lobbyName, team1Name, team2Name });
+    const { gameMode, mapPool, format, teamSize, lobbyName, team1Name, team2Name, friendlyFire } = req.body;
+    const lobby = await lobbyService.updateConfig(req.params.id, player.steamId, { gameMode, mapPool, format, teamSize, lobbyName, team1Name, team2Name, friendlyFire });
     return res.json({ success: true, lobby });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to update config';

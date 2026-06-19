@@ -85,7 +85,8 @@ export class MapPoolService {
       name: input.name.trim(),
       map_ids: JSON.stringify(input.mapIds),
       is_default: 0,
-      enabled: input.enabled !== undefined ? (input.enabled ? 1 : 0) : 1, // Default to enabled
+      enabled: input.enabled !== undefined ? (input.enabled ? 1 : 0) : 1,
+      game_modes: input.gameModes ? JSON.stringify(input.gameModes) : null,
     });
 
     log.success(`Map pool created: ${input.name}`);
@@ -126,6 +127,7 @@ export class MapPoolService {
     if (input.name !== undefined) updateData.name = input.name.trim();
     if (input.mapIds !== undefined) updateData.map_ids = JSON.stringify(input.mapIds);
     if (input.enabled !== undefined) updateData.enabled = input.enabled ? 1 : 0;
+    if (input.gameModes !== undefined) updateData.game_modes = input.gameModes ? JSON.stringify(input.gameModes) : null;
 
     await db.updateAsync('map_pools', updateData, 'id = $1', [id]);
 
@@ -203,12 +205,18 @@ export class MapPoolService {
       mapIds = [];
     }
 
+    let gameModes: string[] | null = null;
+    if (pool.game_modes) {
+      try { gameModes = JSON.parse(pool.game_modes); } catch { gameModes = null; }
+    }
+
     return {
       id: pool.id,
       name: pool.name,
       mapIds,
       isDefault: pool.is_default === 1,
       enabled: pool.enabled === 1,
+      gameModes,
       createdAt: pool.created_at,
       updatedAt: pool.updated_at,
     };

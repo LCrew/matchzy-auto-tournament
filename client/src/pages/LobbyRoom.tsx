@@ -65,6 +65,7 @@ interface MapPool {
   name: string;
   maps: string[];
   isDefault?: boolean;
+  gameModes?: string[] | null;
 }
 
 function getFaceitColor(level: number): string {
@@ -426,7 +427,13 @@ export default function LobbyRoom() {
               <Divider />
               <FormControl size="small" fullWidth disabled={!isCreator}>
                 <InputLabel>Mode</InputLabel>
-                <Select value={lobby.gameMode} label="Mode" onChange={(e) => handleUpdateConfig({ gameMode: e.target.value })}>
+                <Select value={lobby.gameMode} label="Mode" onChange={(e) => {
+                  const newMode = e.target.value as string;
+                  const modePool = mapPools.find((p) => p.gameModes?.includes(newMode)) || mapPools.find((p) => p.isDefault);
+                  const updates: Record<string, unknown> = { gameMode: newMode };
+                  if (modePool) updates.mapPool = modePool.maps;
+                  handleUpdateConfig(updates);
+                }}>
                   {gameModes.map((mode) => (<MenuItem key={mode.id} value={mode.id}>{mode.name}</MenuItem>))}
                 </Select>
               </FormControl>
@@ -951,33 +958,54 @@ export default function LobbyRoom() {
                   onChange={(e) => handleUpdateConfig({ team2Name: e.target.value })} sx={{ flex: 1, minWidth: 120 }} />
               </Box>
 
-              {/* Map Veto Toggle */}
-              <Box>
-                <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>Map Veto</Typography>
-                <ToggleButtonGroup
-                  value={vetoEnabled ? 'on' : 'off'}
-                  exclusive
-                  onChange={(_e, val) => {
-                    if (val === null) return;
-                    setVetoEnabled(val === 'on');
-                    if (val === 'off' && lobby.mapPool.length > 1) {
-                      handleUpdateConfig({ mapPool: [lobby.mapPool[0]] });
-                    }
-                  }}
-                  size="small"
-                  disabled={!isCreator}
-                >
-                  <ToggleButton value="on" sx={{ px: 3 }}>On</ToggleButton>
-                  <ToggleButton value="off" sx={{ px: 3 }}>Off</ToggleButton>
-                </ToggleButtonGroup>
+              {/* Map Veto + Friendly Fire Toggles */}
+              <Box display="flex" gap={3} flexWrap="wrap">
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>Map Veto</Typography>
+                  <ToggleButtonGroup
+                    value={vetoEnabled ? 'on' : 'off'}
+                    exclusive
+                    onChange={(_e, val) => {
+                      if (val === null) return;
+                      setVetoEnabled(val === 'on');
+                      if (val === 'off' && lobby.mapPool.length > 1) {
+                        handleUpdateConfig({ mapPool: [lobby.mapPool[0]] });
+                      }
+                    }}
+                    size="small"
+                    disabled={!isCreator}
+                  >
+                    <ToggleButton value="on" sx={{ px: 3 }}>On</ToggleButton>
+                    <ToggleButton value="off" sx={{ px: 3 }}>Off</ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>Friendly Fire</Typography>
+                  <ToggleButtonGroup
+                    value={lobby.state.friendlyFire ? 'on' : 'off'}
+                    exclusive
+                    onChange={(_e, val) => {
+                      if (val === null) return;
+                      handleUpdateConfig({ friendlyFire: val === 'on' });
+                    }}
+                    size="small"
+                    disabled={!isCreator}
+                  >
+                    <ToggleButton value="on" sx={{ px: 3 }}>On</ToggleButton>
+                    <ToggleButton value="off" sx={{ px: 3 }}>Off</ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
               </Box>
 
               {/* Map Pool Presets (quick select) */}
-              {vetoEnabled && mapPools.length > 0 && (
+              {vetoEnabled && mapPools.length > 0 && (() => {
+                const filtered = mapPools.filter((p) => !p.gameModes || p.gameModes.length === 0 || p.gameModes.includes(lobby.gameMode));
+                if (filtered.length === 0) return null;
+                return (
                 <Box>
                   <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>Quick Select</Typography>
                   <Box display="flex" gap={1} flexWrap="wrap">
-                    {mapPools.map((pool) => (
+                    {filtered.map((pool) => (
                       <Chip
                         key={pool.id}
                         label={`${pool.name} (${(pool.maps || []).length})`}
@@ -989,7 +1017,8 @@ export default function LobbyRoom() {
                     ))}
                   </Box>
                 </Box>
-              )}
+                );
+              })()}
 
               {/* Map Grid */}
               <Box>

@@ -612,7 +612,7 @@ class LobbyService {
   async updateConfig(
     id: string,
     requesterId: string,
-    config: { gameMode?: string; mapPool?: string[]; format?: LobbyFormat; teamSize?: number; lobbyName?: string; team1Name?: string; team2Name?: string }
+    config: { gameMode?: string; mapPool?: string[]; format?: LobbyFormat; teamSize?: number; lobbyName?: string; team1Name?: string; team2Name?: string; friendlyFire?: boolean }
   ): Promise<LobbyResponse> {
     const lobby = await this.getById(id);
     if (!lobby) throw new Error('Lobby not found');
@@ -627,12 +627,12 @@ class LobbyService {
       updates.team_size = config.teamSize;
     }
 
-    // Update names in lobby_state
-    if (config.lobbyName !== undefined || config.team1Name !== undefined || config.team2Name !== undefined) {
+    if (config.lobbyName !== undefined || config.team1Name !== undefined || config.team2Name !== undefined || config.friendlyFire !== undefined) {
       const state = lobby.state;
       if (config.lobbyName !== undefined) state.lobbyName = config.lobbyName;
       if (config.team1Name !== undefined) state.team1Name = config.team1Name;
       if (config.team2Name !== undefined) state.team2Name = config.team2Name;
+      if (config.friendlyFire !== undefined) state.friendlyFire = config.friendlyFire;
       updates.lobby_state = JSON.stringify(state);
     }
 
@@ -754,6 +754,7 @@ class LobbyService {
       cvars: {
         mp_maxrounds: 24,
         matchzy_show_credits_on_match_start: 0,
+        mp_friendlyfire: state.friendlyFire ? 1 : 0,
         ...matchzyEnhancedCvars,
       },
     };

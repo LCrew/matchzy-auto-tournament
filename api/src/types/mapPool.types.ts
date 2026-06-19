@@ -8,6 +8,7 @@ export interface DbMapPoolRow {
   map_ids: string; // JSON array of map IDs
   is_default: number; // 0 or 1
   enabled: number; // 0 or 1
+  game_modes?: string | null; // JSON array of game mode IDs, null = all modes
   created_at: number;
   updated_at: number;
 }
@@ -18,6 +19,7 @@ export interface MapPool {
   mapIds: string[];
   isDefault: boolean;
   enabled: boolean;
+  gameModes: string[] | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -26,12 +28,14 @@ export interface CreateMapPoolInput {
   name: string;
   mapIds: string[];
   enabled?: boolean; // Optional, defaults to true
+  gameModes?: string[] | null;
 }
 
 export interface UpdateMapPoolInput {
   name?: string;
   mapIds?: string[];
   enabled?: boolean;
+  gameModes?: string[] | null;
 }
 
 export interface MapPoolResponse {
@@ -40,6 +44,7 @@ export interface MapPoolResponse {
   mapIds: string[];
   isDefault: boolean;
   enabled: boolean;
+  gameModes: string[] | null;
   createdAt: number;
   updatedAt: number;
 }

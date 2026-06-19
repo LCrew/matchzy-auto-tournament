@@ -95,6 +95,12 @@ export default function MapPoolActionsModal({
                 color={mapPool.enabled ? 'success' : 'default'}
                 variant={mapPool.enabled ? 'filled' : 'outlined'}
               />
+              {mapPool.gameModes && mapPool.gameModes.length > 0 && mapPool.gameModes.map((m) => (
+                <Chip key={m} label={m} size="small" variant="outlined" color="info" />
+              ))}
+              {(!mapPool.gameModes || mapPool.gameModes.length === 0) && (
+                <Chip label="All modes" size="small" variant="outlined" />
+              )}
             </Box>
           </Box>
           <Box>

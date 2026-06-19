@@ -49,9 +49,12 @@ export function MapPoolCard({ pool, maps, onClick }: MapPoolCardProps) {
           <Typography variant="h6" component="div">
             {pool.name}
           </Typography>
-          <Box display="flex" gap={0.5}>
+          <Box display="flex" gap={0.5} flexWrap="wrap">
             {pool.isDefault && <Chip label="Default" size="small" color="primary" />}
             {!pool.enabled && <Chip label="Disabled" size="small" color="default" variant="outlined" />}
+            {pool.gameModes && pool.gameModes.length > 0 && pool.gameModes.map((m) => (
+              <Chip key={m} label={m} size="small" variant="outlined" color="info" />
+            ))}
           </Box>
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
