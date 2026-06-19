@@ -174,6 +174,9 @@ export default function Settings() {
   const [initialMatchzyFfwTime, setInitialMatchzyFfwTime] = useState<number | null>(null);
   const [matchzyDemoRecordingEnabled, setMatchzyDemoRecordingEnabled] = useState<0 | 1 | null>(null);
   const [initialMatchzyDemoRecordingEnabled, setInitialMatchzyDemoRecordingEnabled] = useState<0 | 1 | null>(null);
+  const [enabledGameModes, setEnabledGameModes] = useState<string[]>([]);
+  const [allGameModes, setAllGameModes] = useState<{ id: string; name: string }[]>([]);
+  const [initialEnabledGameModes, setInitialEnabledGameModes] = useState<string[]>([]);
   const [resetApiDialogOpen, setResetApiDialogOpen] = useState(false);
   const [resettingApi, setResettingApi] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -331,6 +334,16 @@ export default function Settings() {
       setInitialMatchzyFfwTime(matchzyFfwT);
       setMatchzyDemoRecordingEnabled(matchzyDemo);
       setInitialMatchzyDemoRecordingEnabled(matchzyDemo);
+
+      // Load game modes
+      try {
+        const modesRes = await api.get<{ allGameModes: { id: string; name: string }[]; gameModes: { id: string; name: string }[] }>('/api/lobbies/game-modes');
+        const all = modesRes.allGameModes || modesRes.gameModes || [];
+        const enabled = modesRes.gameModes?.map((m: { id: string }) => m.id) || all.map((m: { id: string }) => m.id);
+        setAllGameModes(all);
+        setEnabledGameModes(enabled);
+        setInitialEnabledGameModes(enabled);
+      } catch { /* ignore - non-critical */ }
     } catch (err) {
       const message = err instanceof Error ? err.message : t('settingsPage.errors.loadSettings');
       showError(message);
@@ -404,6 +417,7 @@ export default function Settings() {
           // Only send developer options from dev builds to keep this feature
           // clearly scoped to development environments.
           ...(isDev && { simulateMatches, simulationTimescale }),
+          enabledGameModes: enabledGameModes.length === allGameModes.length ? null : enabledGameModes,
         };
 
         const response: SettingsResponse = await api.put('/api/settings', payload);
@@ -1204,6 +1218,52 @@ export default function Settings() {
                           {t('settingsPage.matchRating.matchzyCore.seriesEnd.kickDelayHelper')}
                         </Typography>
                       </Stack>
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
+                {/* Game Modes */}
+                <Accordion defaultExpanded sx={ACCORDION_SX}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={ACCORDION_SUMMARY_SX}>
+                    <Box>
+                      <Typography variant="h6" fontWeight={600}>
+                        Lobby Game Modes
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Choose which game modes are available in the lobby dropdown
+                      </Typography>
+                    </Box>
+                  </AccordionSummary>
+                  <AccordionDetails sx={ACCORDION_DETAILS_SX}>
+                    <Stack spacing={1}>
+                      {allGameModes.map((mode) => (
+                        <FormControlLabel
+                          key={mode.id}
+                          control={
+                            <Switch
+                              checked={enabledGameModes.includes(mode.id)}
+                              onChange={async (e) => {
+                                const next = e.target.checked
+                                  ? [...enabledGameModes, mode.id]
+                                  : enabledGameModes.filter((id) => id !== mode.id);
+                                setEnabledGameModes(next);
+                                try {
+                                  await api.put('/api/settings', {
+                                    enabledGameModes: next.length === allGameModes.length ? null : next,
+                                  });
+                                  setInitialEnabledGameModes(next);
+                                  showSuccess('Game modes updated');
+                                } catch { showError('Failed to update game modes'); }
+                              }}
+                              color="primary"
+                              size="small"
+                            />
+                          }
+                          label={mode.name}
+                        />
+                      ))}
+                      {allGameModes.length === 0 && (
+                        <Typography variant="body2" color="text.disabled">No game modes found</Typography>
+                      )}
                     </Stack>
                   </AccordionDetails>
                 </Accordion>

@@ -7,6 +7,7 @@ import { getWebhookBaseUrl } from '../utils/urlHelper';
 import { requireAuth } from '../middleware/auth';
 import { db } from '../config/database';
 import { log } from '../utils/logger';
+import { settingsService } from '../services/settingsService';
 import type { GameMode } from '../types/lobby.types';
 
 const router = Router();
@@ -65,14 +66,25 @@ router.get('/game-modes', async (_req: Request, res: Response) => {
       { id: 'wingman', name: 'Wingman', commands: [] },
       { id: 'practice', name: 'Practice', commands: ['css_prac'] },
       { id: 'retake', name: 'Retake', commands: ['css_gamemode retake'] },
-      { id: 'deathmatch', name: 'Deathmatch', commands: ['game_type 1; game_mode 2'] },
-      { id: 'gungame', name: 'Gun Game', commands: ['game_type 1; game_mode 0'] },
+      { id: 'deathmatch', name: 'Deathmatch', commands: ['css_gamemode deathmatch'] },
+      { id: 'gungame', name: 'Gun Game', commands: ['css_gamemode gungame'] },
     ];
     const rows = await db.queryAsync<{ id: string; name: string; commands: string }>(
       'SELECT id, name, commands FROM game_modes ORDER BY created_at'
     );
     const custom = rows.map((r) => ({ id: r.id, name: r.name, commands: JSON.parse(r.commands) }));
-    return res.json({ success: true, gameModes: [...builtIn, ...custom] });
+    const allModes = [...builtIn, ...custom];
+
+    // Filter by enabled_game_modes setting (if set). All modes enabled by default.
+    const enabledRaw = await settingsService.getSetting('enabled_game_modes');
+    let enabledIds: string[] | null = null;
+    if (enabledRaw) {
+      try { enabledIds = JSON.parse(enabledRaw); } catch { /* ignore */ }
+    }
+
+    const gameModes = enabledIds ? allModes.filter((m) => enabledIds!.includes(m.id)) : allModes;
+    // Also return the full list for admin configuration
+    return res.json({ success: true, gameModes, allGameModes: allModes });
   } catch (error) {
     log.error('Failed to list game modes', error);
     return res.status(500).json({ success: false, error: 'Failed to list game modes' });

@@ -38,7 +38,8 @@ export type AppSettingKey =
   | 'matchzy_gg_min_score_diff'
   | 'matchzy_ffw_enabled'
   | 'matchzy_ffw_time'
-  | 'matchzy_demo_recording_enabled';
+  | 'matchzy_demo_recording_enabled'
+  | 'enabled_game_modes';
 
 export interface AppSetting {
   key: AppSettingKey;
@@ -84,6 +85,7 @@ const ALLOWED_KEYS: AppSettingKey[] = [
   'matchzy_ffw_enabled',
   'matchzy_ffw_time',
   'matchzy_demo_recording_enabled',
+  'enabled_game_modes',
 ];
 
 class SettingsService {
