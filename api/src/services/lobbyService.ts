@@ -905,7 +905,9 @@ class LobbyService {
         await delay(200);
         await rconService.sendCommand(serverId, 'css_plugins load GameModifiers');
       } else {
-        log.info(`[POST-LOAD] Loading MatchZy on server ${serverId}`);
+        log.info(`[POST-LOAD] Loading MatchZy, unloading GameModifiers on server ${serverId}`);
+        await rconService.sendCommand(serverId, 'css_plugins unload GameModifiers');
+        await delay(200);
         await rconService.sendCommand(serverId, 'css_plugins load MatchZy');
       }
       await delay(200);
