@@ -895,12 +895,18 @@ class LobbyService {
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
     try {
+      log.info(`[POST-LOAD] Unloading all plugins on server ${serverId}`);
+      await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
+      await delay(500);
+
       if (gameMode === 'clownmode') {
-        log.info(`[POST-LOAD] Loading GameModifiers plugin on server ${serverId}`);
+        log.info(`[POST-LOAD] Loading MatchZy + GameModifiers on server ${serverId}`);
+        await rconService.sendCommand(serverId, 'css_plugins load MatchZy');
+        await delay(200);
         await rconService.sendCommand(serverId, 'css_plugins load GameModifiers');
       } else {
-        log.info(`[POST-LOAD] Unloading GameModifiers plugin on server ${serverId}`);
-        await rconService.sendCommand(serverId, 'css_plugins unload GameModifiers');
+        log.info(`[POST-LOAD] Loading MatchZy on server ${serverId}`);
+        await rconService.sendCommand(serverId, 'css_plugins load MatchZy');
       }
       await delay(200);
     } catch (err) {

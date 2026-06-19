@@ -111,7 +111,9 @@ export async function loadMatchOnServer(
       log.info(`[MATCH LOADING] Resetting server ${serverId} to competitive mode`);
       await rconService.sendCommand(serverId, 'css_restart');
       await delay(1000);
-      await rconService.sendCommand(serverId, 'css_plugins unload GameModifiers');
+      await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
+      await delay(500);
+      await rconService.sendCommand(serverId, 'css_plugins load MatchZy');
       await delay(200);
       await rconService.sendCommand(serverId, 'game_type 0');
       await delay(200);
