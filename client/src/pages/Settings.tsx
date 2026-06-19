@@ -417,7 +417,6 @@ export default function Settings() {
           // Only send developer options from dev builds to keep this feature
           // clearly scoped to development environments.
           ...(isDev && { simulateMatches, simulationTimescale }),
-          enabledGameModes: enabledGameModes.length === allGameModes.length ? null : enabledGameModes,
         };
 
         const response: SettingsResponse = await api.put('/api/settings', payload);
