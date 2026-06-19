@@ -13,7 +13,7 @@ import { emitMatchUpdate, emitBracketUpdate } from './socketService';
 import { log } from '../utils/logger';
 import type { CreateMatchInput, MatchConfig, MatchPlayer } from '../types/match.types';
 
-const MATCHZY_MODES = new Set(['competitive', 'clownmode']);
+const MATCHZY_MODES = new Set(['competitive', 'clownmode', 'wingman']);
 
 function generateId(): string {
   return `lobby-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -746,7 +746,7 @@ class LobbyService {
       players_per_team: lobby.teamSize,
       min_players_to_ready: minPlayersToReady,
       min_spectators_to_ready: 0,
-      wingman: false,
+      wingman: lobby.gameMode === 'wingman',
       map_sides: mapSides,
       team1: { name: state.team1Name || (state.captains.team1 ? `team_${(t1.find(p => p.steamId === state.captains.team1)?.name || '1').replace(/\s+/g, '')}` : 'Team 1'), players: team1PlayerMap },
       team2: { name: state.team2Name || (state.captains.team2 ? `team_${(t2.find(p => p.steamId === state.captains.team2)?.name || '2').replace(/\s+/g, '')}` : 'Team 2'), players: team2PlayerMap },
@@ -808,6 +808,7 @@ class LobbyService {
       slug,
       round: 0,
       match_number: 0,
+      tournament_id: null,
       status: 'pending',
       config: JSON.stringify({ maplist: maps, matchid: Date.now() }),
       created_at: now,
