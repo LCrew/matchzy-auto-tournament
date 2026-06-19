@@ -846,6 +846,7 @@ class LobbyService {
     const modeRow = await db.queryOneAsync<{ commands: string }>('SELECT commands FROM game_modes WHERE id = ?', [lobby.gameMode]);
     const GAMEMODE_MANAGER_MODES = new Set(['retake', 'deathmatch', 'gungame']);
     const builtInCommands: Record<string, string[]> = {
+      practice: ['css_prac'],
       retake: ['css_gamemode retake'],
       deathmatch: ['css_gamemode deathmatch'],
       gungame: ['css_gamemode gungame'],
