@@ -100,6 +100,31 @@ export async function loadMatchOnServer(
       return command;
     };
 
+    // STEP 0: Ensure server is in competitive mode and on the correct map.
+    // If the server was previously running deathmatch/gungame/etc., MatchZy
+    // commands are ignored until game_type/game_mode are reset and the map
+    // is reloaded.
+    try {
+      const fullConfig = parsedConfig as { maplist?: string[] };
+      const firstMap = fullConfig.maplist?.[0];
+
+      log.info(`[MATCH LOADING] Resetting server ${serverId} to competitive mode`);
+      await rconService.sendCommand(serverId, 'css_restart');
+      await delay(1000);
+      await rconService.sendCommand(serverId, 'game_type 0');
+      await delay(200);
+      await rconService.sendCommand(serverId, 'game_mode 1');
+      await delay(200);
+
+      if (firstMap) {
+        log.info(`[MATCH LOADING] Changing map to ${firstMap}`);
+        await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
+        await delay(5000);
+      }
+    } catch (resetErr) {
+      log.warn(`[MATCH LOADING] Failed to reset game mode (non-fatal)`, resetErr as Error);
+    }
+
     // STEP 1: Initialize server with persistent configuration (if not already done)
     // This sends base webhook URL, auth tokens, chat prefixes, etc.
     // These settings persist across server restarts and only need to be sent once.
