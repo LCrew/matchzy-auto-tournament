@@ -909,6 +909,8 @@ class LobbyService {
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
     try {
+      await rconService.sendCommand(serverId, 'css_plugins unload GameModeManager');
+      await delay(200);
       if (gameMode === 'clownmode') {
         log.info(`[POST-LOAD] Loading GameModifiers on server ${serverId}`);
         await rconService.sendCommand(serverId, 'css_plugins load GameModifiers');

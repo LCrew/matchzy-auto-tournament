@@ -115,6 +115,8 @@ export async function loadMatchOnServer(
       await delay(500);
       await rconService.sendCommand(serverId, 'css_plugins unload GameModifiers');
       await delay(200);
+      await rconService.sendCommand(serverId, 'css_plugins unload GameModeManager');
+      await delay(200);
       await rconService.sendCommand(serverId, 'css_plugins load MatchZy');
       await delay(200);
       await rconService.sendCommand(serverId, 'game_type 0');
