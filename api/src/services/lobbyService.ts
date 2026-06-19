@@ -851,8 +851,6 @@ class LobbyService {
     };
     const commands = modeRow ? JSON.parse(modeRow.commands) as string[] : (builtInCommands[lobby.gameMode] || []);
 
-    const needsMatchzy = lobby.gameMode === 'practice' || lobby.gameMode === 'retake';
-
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
     try {
@@ -861,15 +859,18 @@ class LobbyService {
       // Reset server state
       await rconService.sendCommand(serverId, 'css_restart');
       await delay(1000);
+      await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
+      await delay(500);
 
-      if (needsMatchzy) {
-        await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
-        await delay(500);
+      if (lobby.gameMode === 'practice') {
+        // Practice needs MatchZy loaded + persistent config
         await rconService.sendCommand(serverId, 'css_plugins load MatchZy');
         await delay(500);
-
-        // Send persistent config (webhook URL, auth tokens, etc.)
         await serverInitializationService.initializeServer(serverId, baseUrl);
+      } else if (lobby.gameMode === 'retake') {
+        // Retake uses GameModeManager, not MatchZy
+        await rconService.sendCommand(serverId, 'css_plugins load GameModeManager');
+        await delay(500);
       }
 
       // Change to selected map first (some modes need the map loaded before commands)
