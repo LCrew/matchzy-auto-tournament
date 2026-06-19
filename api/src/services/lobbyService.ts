@@ -862,25 +862,28 @@ class LobbyService {
       await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
       await delay(500);
 
+      // Load the required plugin
       if (lobby.gameMode === 'practice') {
         await rconService.sendCommand(serverId, 'css_plugins load MatchZy');
         await delay(500);
-        await serverInitializationService.initializeServer(serverId, baseUrl);
+        const initResult = await serverInitializationService.initializeServer(serverId, baseUrl);
+        log.info(`[PLUGIN MODE] Persistent config result: ${initResult.success ? 'OK' : initResult.error || 'failed'}${initResult.alreadyInitialized ? ' (already initialized)' : ''}`);
       } else if (GAMEMODE_MANAGER_MODES.has(lobby.gameMode)) {
         await rconService.sendCommand(serverId, 'css_plugins load GameModeManager');
         await delay(500);
       }
 
-      // Send game mode commands before map change
-      for (const cmd of commands) {
-        await rconService.sendCommand(serverId, cmd);
-        await delay(500);
-      }
-
+      // Change map first, then send game mode commands after map is fully loaded
       const firstMap = maps[0];
       if (firstMap) {
         await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
         await delay(5000);
+      }
+
+      for (const cmd of commands) {
+        const result = await rconService.sendCommand(serverId, cmd);
+        log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
+        await delay(500);
       }
 
       // Mark as loaded
