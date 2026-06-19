@@ -136,7 +136,7 @@ export async function loadMatchOnServer(
     // STEP 1: Initialize server with persistent configuration (if not already done)
     // This sends base webhook URL, auth tokens, chat prefixes, etc.
     // These settings persist across server restarts and only need to be sent once.
-    const initResult = await serverInitializationService.initializeServer(serverId, baseUrl);
+    const initResult = await serverInitializationService.initializeServer(serverId, baseUrl, { force: true });
     if (!initResult.success && !initResult.alreadyInitialized) {
       log.error(`Cannot load match ${matchSlug}: server initialization failed`, {
         error: initResult.error,
