@@ -873,11 +873,10 @@ class LobbyService {
         await delay(500);
       }
 
-      // Change map first, then send game mode commands after map is fully loaded
       const firstMap = maps[0];
       if (firstMap) {
         await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
-        await delay(5000);
+        await delay(lobby.gameMode === 'practice' ? 10000 : 5000);
       }
 
       for (const cmd of commands) {
