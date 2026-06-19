@@ -866,8 +866,8 @@ class LobbyService {
       if (lobby.gameMode === 'practice') {
         await rconService.sendCommand(serverId, 'css_plugins load MatchZy');
         await delay(500);
-        const initResult = await serverInitializationService.initializeServer(serverId, baseUrl);
-        log.info(`[PLUGIN MODE] Persistent config result: ${initResult.success ? 'OK' : initResult.error || 'failed'}${initResult.alreadyInitialized ? ' (already initialized)' : ''}`);
+        const initResult = await serverInitializationService.initializeServer(serverId, baseUrl, { force: true });
+        log.info(`[PLUGIN MODE] Persistent config: ${initResult.success ? 'sent' : initResult.error || 'failed'}`);
       } else if (GAMEMODE_MANAGER_MODES.has(lobby.gameMode)) {
         await rconService.sendCommand(serverId, 'css_plugins load GameModeManager');
         await delay(500);
