@@ -701,12 +701,12 @@ class LobbyService {
 
     if (isMatchzyMode) {
       await this.createMatchzyMatch(id, lobby, state, slug, maps, t1, t2, baseUrl, forceServerId);
+      // Only MatchZy modes need post-load plugin management (GameModifiers for clownmode)
+      await this.sendPostLoadCommands(id, slug, lobby.gameMode);
     } else {
+      // Plugin modes handle their own plugin loading in createPluginMatch
       await this.createPluginMatch(id, lobby, slug, maps, baseUrl, forceServerId);
     }
-
-    // Fun plugin management: enable for clownmode, disable for everything else
-    await this.sendPostLoadCommands(id, slug, lobby.gameMode);
 
     const updated = (await this.getById(id))!;
     emitLobbyUpdate(updated);
