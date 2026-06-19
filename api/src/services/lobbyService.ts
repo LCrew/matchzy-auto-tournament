@@ -844,10 +844,11 @@ class LobbyService {
 
     // Fetch game mode commands
     const modeRow = await db.queryOneAsync<{ commands: string }>('SELECT commands FROM game_modes WHERE id = ?', [lobby.gameMode]);
+    const GAMEMODE_MANAGER_MODES = new Set(['retake', 'deathmatch', 'gungame']);
     const builtInCommands: Record<string, string[]> = {
       retake: ['css_gamemode retake'],
-      deathmatch: ['game_type 1', 'game_mode 2'],
-      gungame: ['game_type 1', 'game_mode 0'],
+      deathmatch: ['css_gamemode deathmatch'],
+      gungame: ['css_gamemode gungame'],
     };
     const commands = modeRow ? JSON.parse(modeRow.commands) as string[] : (builtInCommands[lobby.gameMode] || []);
 
@@ -856,34 +857,30 @@ class LobbyService {
     try {
       log.info(`[PLUGIN MODE] Loading ${lobby.gameMode} on server ${serverId}`);
 
-      // Reset server state
       await rconService.sendCommand(serverId, 'css_restart');
       await delay(1000);
       await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
       await delay(500);
 
       if (lobby.gameMode === 'practice') {
-        // Practice needs MatchZy loaded + persistent config
         await rconService.sendCommand(serverId, 'css_plugins load MatchZy');
         await delay(500);
         await serverInitializationService.initializeServer(serverId, baseUrl);
-      } else if (lobby.gameMode === 'retake') {
-        // Retake uses GameModeManager, not MatchZy
+      } else if (GAMEMODE_MANAGER_MODES.has(lobby.gameMode)) {
         await rconService.sendCommand(serverId, 'css_plugins load GameModeManager');
         await delay(500);
       }
 
-      // Change to selected map first (some modes need the map loaded before commands)
+      // Send game mode commands before map change
+      for (const cmd of commands) {
+        await rconService.sendCommand(serverId, cmd);
+        await delay(500);
+      }
+
       const firstMap = maps[0];
       if (firstMap) {
         await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
         await delay(5000);
-      }
-
-      // Send game mode commands after map is loaded
-      for (const cmd of commands) {
-        await rconService.sendCommand(serverId, cmd);
-        await delay(500);
       }
 
       // Mark as loaded
