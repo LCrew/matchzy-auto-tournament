@@ -333,6 +333,12 @@ class SettingsService {
         return;
       }
 
+      if (key === 'enabled_game_modes') {
+        await db.setAppSettingAsync(key, trimmed);
+        log.success(`Enabled game modes updated`);
+        return;
+      }
+
       // MatchZy Enhanced float settings
       if (key === 'matchzy_gg_threshold') {
         const parsed = Number(trimmed);
