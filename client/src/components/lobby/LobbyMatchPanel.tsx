@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Box, Button, Card, CardContent, Chip, Typography } from '@mui/material';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 import { useLiveStats } from '../../hooks/useLiveStats';
+import type { MatchMapResult } from '../../types';
 
 interface LobbyPlayerInfo {
   steamId: string;
@@ -43,18 +44,71 @@ export function LobbyMatchPanel({
 }: LobbyMatchPanelProps) {
   const [copied, setCopied] = useState(false);
   const [connected, setConnected] = useState(false);
-  const { stats } = useLiveStats(matchSlug);
+  const { stats, mapResults } = useLiveStats(matchSlug);
 
   const address = `${server.host}:${server.port}`;
   const connectCommand = `connect ${address}`;
 
   const t1Score = stats?.team1Score ?? 0;
   const t2Score = stats?.team2Score ?? 0;
-  const currentMap = stats?.mapName || (maps[0] ? maps[0] : '');
+  const t1SeriesScore = stats?.team1SeriesScore ?? 0;
+  const t2SeriesScore = stats?.team2SeriesScore ?? 0;
+  const totalMaps = stats?.totalMaps ?? maps.length;
+  const isSeries = totalMaps > 1;
+  const currentMap = stats?.mapName || maps[stats?.mapNumber ?? 0] || maps[0] || '';
   const mapDisplayName = currentMap ? getMapName(currentMap) : 'TBD';
   const mapNumber = (stats?.mapNumber ?? 0) + 1;
   const roundNumber = stats?.roundNumber ?? 0;
   const statusInfo = stats?.status ? STATUS_DISPLAY[stats.status] : null;
+
+  // Remap player stats to correct teams using steamIds from the lobby.
+  // MatchZy may report teams based on CT/T side after halftime, causing swaps.
+  const team1SteamIds = useMemo(() => new Set(team1Players.map(p => p.steamId)), [team1Players]);
+  const team2SteamIds = useMemo(() => new Set(team2Players.map(p => p.steamId)), [team2Players]);
+
+  const { remappedT1, remappedT2 } = useMemo(() => {
+    const rawT1 = stats?.playerStats?.team1 || [];
+    const rawT2 = stats?.playerStats?.team2 || [];
+
+    if (rawT1.length === 0 && rawT2.length === 0) {
+      return { remappedT1: [], remappedT2: [] };
+    }
+
+    const allPlayers = [
+      ...rawT1.map(p => ({ ...p, reportedTeam: 'team1' as const })),
+      ...rawT2.map(p => ({ ...p, reportedTeam: 'team2' as const })),
+    ];
+
+    const t1: typeof rawT1 = [];
+    const t2: typeof rawT2 = [];
+    const unmatched: typeof rawT1 = [];
+
+    for (const p of allPlayers) {
+      if (team1SteamIds.has(p.steamId)) {
+        t1.push(p);
+      } else if (team2SteamIds.has(p.steamId)) {
+        t2.push(p);
+      } else {
+        unmatched.push(p);
+      }
+    }
+
+    // If remapping found nothing (e.g., bot-only match), fall back to raw data
+    if (t1.length === 0 && t2.length === 0) {
+      return { remappedT1: rawT1, remappedT2: rawT2 };
+    }
+
+    // Distribute any unmatched players to whichever team is short
+    for (const p of unmatched) {
+      if (t1.length <= t2.length) {
+        t1.push(p);
+      } else {
+        t2.push(p);
+      }
+    }
+
+    return { remappedT1: t1, remappedT2: t2 };
+  }, [stats?.playerStats, team1SteamIds, team2SteamIds]);
 
   const handleConnect = () => {
     setConnected(true);
@@ -72,7 +126,7 @@ export function LobbyMatchPanel({
     <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
       <CardContent>
         <Box display="flex" flexDirection="column" gap={2}>
-          {/* Connect bar — top priority */}
+          {/* Connect bar */}
           <Box display="flex" gap={1} alignItems="center">
             <Button
               variant="contained"
@@ -81,7 +135,7 @@ export function LobbyMatchPanel({
               onClick={handleConnect}
               sx={{ flex: 1, py: 1, fontWeight: 700, borderRadius: 2 }}
             >
-              {connected ? '✓ Connecting...' : 'Connect'}
+              {connected ? 'Connecting...' : 'Connect'}
             </Button>
             <Button
               variant="outlined"
@@ -97,6 +151,21 @@ export function LobbyMatchPanel({
           <Typography variant="caption" color="text.secondary">
             {server.name}
           </Typography>
+
+          {/* Series score (BO3/BO5) */}
+          {isSeries && (
+            <Box display="flex" justifyContent="center" alignItems="center" gap={1.5}>
+              <Typography variant="body2" fontWeight={700} color="primary.main">
+                {t1SeriesScore}
+              </Typography>
+              <Typography variant="caption" fontWeight={600} color="text.secondary">
+                SERIES
+              </Typography>
+              <Typography variant="body2" fontWeight={700} color="error.main">
+                {t2SeriesScore}
+              </Typography>
+            </Box>
+          )}
 
           {/* Scoreboard */}
           <Card variant="outlined">
@@ -119,13 +188,30 @@ export function LobbyMatchPanel({
             </CardContent>
           </Card>
 
+          {/* Completed map results (BO3/BO5 history) */}
+          {mapResults.length > 0 && (
+            <Box>
+              <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                Completed Maps
+              </Typography>
+              <Box display="flex" gap={1} flexWrap="wrap">
+                {mapResults.map((mr: MatchMapResult) => (
+                  <Chip
+                    key={mr.mapNumber}
+                    size="small"
+                    variant="outlined"
+                    color={mr.winnerTeam === 'team1' ? 'primary' : mr.winnerTeam === 'team2' ? 'error' : 'default'}
+                    label={`Map ${mr.mapNumber + 1}: ${mr.mapName ? getMapName(mr.mapName) : '?'} ${mr.team1Score}-${mr.team2Score}`}
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+
           {/* Player stats */}
           {(() => {
-            const liveT1 = stats?.playerStats?.team1 || [];
-            const liveT2 = stats?.playerStats?.team2 || [];
-
             const buildRows = (
-              livePlayers: typeof liveT1,
+              livePlayers: typeof remappedT1,
               lobbyPlayers: LobbyPlayerInfo[]
             ) => {
               if (livePlayers.length > 0) {
@@ -141,8 +227,8 @@ export function LobbyMatchPanel({
               }));
             };
 
-            const rows1 = buildRows(liveT1, team1Players);
-            const rows2 = buildRows(liveT2, team2Players);
+            const rows1 = buildRows(remappedT1, team1Players);
+            const rows2 = buildRows(remappedT2, team2Players);
 
             return (
               <Box display="flex" gap={2} flexDirection={{ xs: 'column', md: 'row' }}>
@@ -186,7 +272,7 @@ export function LobbyMatchPanel({
               {mapDisplayName}
             </Typography>
             <Typography variant="caption" sx={{ position: 'relative', color: 'rgba(255,255,255,0.8)' }}>
-              Map {mapNumber}
+              Map {mapNumber}{isSeries ? ` of ${totalMaps}` : ''}
             </Typography>
           </Box>
         </Box>

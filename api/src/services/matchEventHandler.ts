@@ -671,13 +671,13 @@ async function handleMapCompletion(
     return;
   }
 
-  // Keep the previous map's final round score visible during the short
-  // "between maps" window. We'll reset map rounds to 0 when the next map
-  // actually goes live (via going_live / round_started events).
   const nextStats = matchLiveStatsService.update(match.slug, {
     status: 'warmup',
     mapNumber: completedMapNumber + 1,
     mapName: null,
+    team1Score: 0,
+    team2Score: 0,
+    roundNumber: 0,
   });
 
   const mapResults = await getMapResults(match.slug);

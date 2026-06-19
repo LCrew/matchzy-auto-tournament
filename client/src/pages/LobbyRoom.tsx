@@ -231,12 +231,14 @@ export default function LobbyRoom() {
       await act('leave');
       navigate('/lobby');
     } else if (confirmAction.type === 'end-match') {
-      await rconCmd('css_restart', 'Match ended');
       if (lobby?.matchSlug) {
-        try { await api.fetch(`/api/matches/${lobby.matchSlug}/force-cancel`, { method: 'POST' }); } catch { /* best effort */ }
+        try {
+          await api.fetch(`/api/matches/${lobby.matchSlug}/end`, { method: 'POST' });
+          showSuccess('Match ended');
+        } catch {
+          showError('Failed to end match gracefully');
+        }
       }
-      // Set lobby status to cancelled
-      try { await api.fetch(`/api/lobbies/${id}`, { method: 'DELETE' }); } catch { /* best effort */ }
       await loadLobby();
     } else if (confirmAction.type === 'cancel') {
       // If a match is running, force-cancel it on the server first
@@ -475,7 +477,7 @@ export default function LobbyRoom() {
               <Button variant="outlined" fullWidth color="warning" onClick={() => rconCmd('css_restart', 'Rebooting...')} disabled={executing} sx={BTN}>Reboot Server</Button>
               <Button variant="outlined" fullWidth color="warning" onClick={() => rconCmd('css_skipveto', 'Veto skipped')} disabled={executing} sx={BTN}>Skip Veto</Button>
               <Button variant="outlined" fullWidth color="warning" onClick={() => rconCmd('mp_warmup_end', 'Warmup ended')} disabled={executing} sx={BTN}>End Warmup</Button>
-              <Button variant="outlined" fullWidth color="error" onClick={() => setConfirmAction({ type: 'end-match', title: 'End Match', message: 'Are you sure you want to end this match? This cannot be undone.' })} disabled={executing} sx={BTN}>End Match</Button>
+              <Button variant="outlined" fullWidth color="error" onClick={() => setConfirmAction({ type: 'end-match', title: 'End Match', message: 'Are you sure you want to end this match? The current scores will be preserved.' })} disabled={executing} sx={BTN}>End Match</Button>
             </>
           )}
 

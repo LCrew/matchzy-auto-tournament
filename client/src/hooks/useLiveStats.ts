@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { api } from '../utils/api';
 import { io, type Socket } from 'socket.io-client';
-import type { MatchLiveStats } from '../types';
+import type { MatchLiveStats, MatchMapResult } from '../types';
 
 const SNAPSHOT_CACHE_MS = 5000;
 
@@ -11,6 +11,7 @@ interface LoadOptions {
 
 export function useLiveStats(matchSlug: string | null) {
   const [stats, setStats] = useState<MatchLiveStats | null>(null);
+  const [mapResults, setMapResults] = useState<MatchMapResult[]>([]);
   const [loading, setLoading] = useState(false);
   const cacheRef = useRef<{ slug: string | null; timestamp: number }>({
     slug: null,
@@ -21,6 +22,7 @@ export function useLiveStats(matchSlug: string | null) {
     async ({ force = false }: LoadOptions = {}) => {
       if (!matchSlug) {
         setStats(null);
+        setMapResults([]);
         return;
       }
 
@@ -36,7 +38,10 @@ export function useLiveStats(matchSlug: string | null) {
 
       try {
         setLoading(true);
-        const response = await api.get<MatchLiveStats & { success: boolean }>(`/api/events/live/${matchSlug}`);
+        const response = await api.get<MatchLiveStats & { success: boolean; mapResults?: MatchMapResult[] }>(`/api/events/live/${matchSlug}`);
+        if (response?.mapResults) {
+          setMapResults(response.mapResults);
+        }
         if (response?.success) {
           setStats({
             matchSlug,
@@ -74,10 +79,15 @@ export function useLiveStats(matchSlug: string | null) {
       slug?: string;
       matchSlug?: string;
       liveStats?: MatchLiveStats;
+      mapResults?: MatchMapResult[];
     }) => {
       const payloadSlug = payload.slug || payload.matchSlug;
       if (!payloadSlug || payloadSlug !== matchSlug) {
         return;
+      }
+
+      if (payload.mapResults) {
+        setMapResults(payload.mapResults);
       }
 
       if (payload.liveStats) {
@@ -97,6 +107,7 @@ export function useLiveStats(matchSlug: string | null) {
 
   return {
     stats,
+    mapResults,
     loading,
     refresh: () => loadStats({ force: true }),
   };

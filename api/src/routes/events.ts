@@ -23,6 +23,7 @@ import { emitMatchEvent, emitServerEvent } from '../services/socketService';
 import { handleMatchEvent } from '../services/matchEventHandler';
 import { playerConnectionService } from '../services/playerConnectionService';
 import { matchLiveStatsService } from '../services/matchLiveStatsService';
+import { getMapResults } from '../services/matchMapResultService';
 import { recordServerTestEvent } from '../services/serverConnectivityService';
 import {
   refreshConnectionsFromServer,
@@ -426,24 +427,24 @@ router.get('/connections/:matchSlug', async (req: Request, res: Response) => {
  * GET /api/events/live/:matchSlug
  * Get latest live stats snapshot for a match (PUBLIC)
  */
-router.get('/live/:matchSlug', (req: Request, res: Response) => {
+router.get('/live/:matchSlug', async (req: Request, res: Response) => {
   try {
     const { matchSlug } = req.params;
     const stats = matchLiveStatsService.getStats(matchSlug);
+    const mapResults = await getMapResults(matchSlug);
 
     if (!stats) {
-      // No in‑memory live stats for this match (likely completed or server restarted).
-      // Return success: false so callers can fall back to persisted DB state
-      // instead of overwriting scores with 0‑0.
       return res.json({
         success: false,
         matchSlug,
+        mapResults,
       });
     }
 
     return res.json({
       success: true,
       ...stats,
+      mapResults,
     });
   } catch (error) {
     log.error('Error fetching live stats', error);

@@ -1556,6 +1556,110 @@ router.patch('/:slug/status', requireAuth, async (req: Request, res: Response) =
 });
 
 /**
+ * POST /api/matches/:slug/end
+ * Gracefully end a match, preserving scores and marking as completed (authenticated).
+ * Sends get5_endmatch to trigger a natural series_end. If the match isn't
+ * completed within a timeout, manually finalizes it with the last known scores.
+ */
+router.post('/:slug/end', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+
+    const match = await db.queryOneAsync<DbMatchRow>(
+      'SELECT * FROM matches WHERE slug = ?',
+      [slug]
+    );
+
+    if (!match) {
+      return res.status(404).json({ success: false, error: 'Match not found' });
+    }
+
+    if (match.status === 'completed' || match.status === 'cancelled') {
+      return res.json({ success: true, message: 'Match already finished' });
+    }
+
+    const serverId = match.server_id;
+
+    if (serverId) {
+      try {
+        const { rconService } = await import('../services/rconService');
+        await rconService.executeCommand(serverId, 'get5_endmatch');
+        log.info(`Sent get5_endmatch to server ${serverId} for match ${slug}`);
+      } catch (rconError) {
+        log.warn(`Failed to send end command to server for ${slug}: ${rconError}`);
+      }
+    }
+
+    // Wait up to 10s for the natural series_end event to complete the match
+    const POLL_INTERVAL = 1000;
+    const MAX_WAIT = 10000;
+    let waited = 0;
+    let completed = false;
+
+    while (waited < MAX_WAIT) {
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+      waited += POLL_INTERVAL;
+      const updated = await db.queryOneAsync<DbMatchRow>(
+        'SELECT status FROM matches WHERE slug = ?',
+        [slug]
+      );
+      if (updated?.status === 'completed') {
+        completed = true;
+        break;
+      }
+    }
+
+    if (!completed) {
+      // Fallback: manually mark as completed using last known live stats
+      const liveStats = matchLiveStatsService.getStats(slug);
+      const mapResults = await getMapResults(slug);
+      const team1SeriesScore = liveStats?.team1SeriesScore ?? mapResults.filter(r => r.winnerTeam === 'team1').length;
+      const team2SeriesScore = liveStats?.team2SeriesScore ?? mapResults.filter(r => r.winnerTeam === 'team2').length;
+
+      const winnerId = team1SeriesScore > team2SeriesScore
+        ? match.team1_id
+        : team2SeriesScore > team1SeriesScore
+          ? match.team2_id
+          : null;
+
+      await db.updateAsync(
+        'matches',
+        {
+          status: 'completed',
+          winner_id: winnerId,
+          completed_at: Math.floor(Date.now() / 1000),
+        },
+        'slug = ?',
+        [slug]
+      );
+
+      log.info(`Match ${slug} manually completed (fallback). Winner: ${winnerId || 'none'}`);
+
+      if (serverId) {
+        serverAllocationTracker.markIdle(serverId);
+        setImmediate(() => {
+          void matchAllocationService.tryImmediateAllocation();
+        });
+      }
+
+      emitMatchUpdate({
+        slug,
+        status: 'completed',
+        team1Score: team1SeriesScore,
+        team2Score: team2SeriesScore,
+        winnerId,
+      });
+    }
+
+    return res.json({ success: true, message: 'Match ended' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to end match';
+    log.error('Error ending match:', error);
+    return res.status(500).json({ success: false, error: message });
+  }
+});
+
+/**
  * POST /api/matches/:slug/force-cancel
  * Force cancel a match even if the server is unreachable (authenticated)
  * This will:

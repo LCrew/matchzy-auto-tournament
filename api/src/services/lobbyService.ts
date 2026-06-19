@@ -896,11 +896,11 @@ class LobbyService {
 
     try {
       if (gameMode === 'clownmode') {
-        log.info(`[POST-LOAD] Enabling fun plugin on server ${serverId}`);
-        await rconService.sendCommand(serverId, 'exec settings/enable_fun.cfg');
+        log.info(`[POST-LOAD] Loading GameModifiers plugin on server ${serverId}`);
+        await rconService.sendCommand(serverId, 'css_plugins load GameModifiers');
       } else {
-        log.info(`[POST-LOAD] Disabling fun plugin on server ${serverId}`);
-        await rconService.sendCommand(serverId, 'exec settings/disable_fun.cfg');
+        log.info(`[POST-LOAD] Unloading GameModifiers plugin on server ${serverId}`);
+        await rconService.sendCommand(serverId, 'css_plugins unload GameModifiers');
       }
       await delay(200);
     } catch (err) {
