@@ -100,21 +100,32 @@ export default function LobbyRoom() {
   const [servers, setServers] = useState<{ id: string; name: string; host: string; port: number; status: string }[]>([]);
   const [faceitData, setFaceitData] = useState<Record<string, { faceitElo: number; skillLevel: number; nickname: string }>>({});
   const [vetoEnabled, setVetoEnabled] = useState(true);
+  // Offset between server clock and client clock (ms). Used to correct veto timer.
+  const [serverClockOffset, setServerClockOffset] = useState(0);
+
+  const applyServerNow = useCallback((serverNow?: number) => {
+    if (serverNow !== undefined) setServerClockOffset(serverNow - Date.now());
+  }, []);
 
   const loadLobby = useCallback(async () => {
     if (!id) return;
     try {
       const res = await api.fetch(`/api/lobbies/${id}`);
       setLobby(res.lobby);
+      applyServerNow(res.serverNow);
     } catch {
       showError('Failed to load lobby');
     }
-  }, [id]);
+  }, [id, applyServerNow]);
 
   useEffect(() => {
     loadLobby();
     const socket = io({ transports: ['websocket'] });
-    socket.on(`lobby:update:${id}`, (updated: Lobby) => setLobby(updated));
+    socket.on(`lobby:update:${id}`, (data: Lobby & { serverNow?: number }) => {
+      const { serverNow, ...updated } = data;
+      setLobby(updated as Lobby);
+      applyServerNow(serverNow);
+    });
     socket.on('lobby:deleted', (data: { id: string }) => {
       if (data.id === id) {
         showError('Lobby was cancelled');
@@ -122,7 +133,7 @@ export default function LobbyRoom() {
       }
     });
     return () => { socket.disconnect(); };
-  }, [id, navigate, loadLobby]);
+  }, [id, navigate, loadLobby, applyServerNow]);
 
   useEffect(() => {
     const load = async () => {
@@ -155,18 +166,19 @@ export default function LobbyRoom() {
 
   const veto = lobby?.state.veto;
 
-  // Veto countdown timer
+  // Veto countdown timer — uses serverClockOffset to correct for client clock skew
   const [vetoCountdown, setVetoCountdown] = useState<number | null>(null);
   useEffect(() => {
     if (!veto?.turnDeadline || veto.completed) { setVetoCountdown(null); return; }
     const tick = () => {
-      const remaining = Math.max(0, Math.ceil((veto.turnDeadline! - Date.now()) / 1000));
+      const serverNow = Date.now() + serverClockOffset;
+      const remaining = Math.max(0, Math.ceil((veto.turnDeadline! - serverNow) / 1000));
       setVetoCountdown(remaining);
     };
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [veto?.turnDeadline, veto?.completed]);
+  }, [veto?.turnDeadline, veto?.completed, serverClockOffset]);
 
   if (!lobby) {
     return (
@@ -691,7 +703,7 @@ export default function LobbyRoom() {
                         } : {}),
                       }}
                     >
-                      {`0:${vetoCountdown.toString().padStart(2, '0')}`}
+                      {`${Math.floor(vetoCountdown / 60)}:${(vetoCountdown % 60).toString().padStart(2, '0')}`}
                     </Typography>
                   </Box>
                 )}

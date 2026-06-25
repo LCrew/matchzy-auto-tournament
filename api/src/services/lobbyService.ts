@@ -607,7 +607,9 @@ class LobbyService {
     const state = lobby.state;
     if (!state.players.find((p) => p.steamId === newOwnerId)) throw new Error('Player not in lobby');
     await db.updateAsync('lobbies', { created_by: newOwnerId, updated_at: Math.floor(Date.now() / 1000) }, 'id = ?', [id]);
-    return (await this.getById(id))!;
+    const updated = (await this.getById(id))!;
+    emitLobbyUpdate(updated);
+    return updated;
   }
 
   async updateConfig(

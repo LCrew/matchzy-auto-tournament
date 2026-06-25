@@ -123,8 +123,9 @@ export function emitVetoUpdate(matchSlug: string, vetoState: VetoUpdateEvent['ve
  */
 export function emitLobbyUpdate(lobby: { id: string }): void {
   if (io) {
-    io.emit('lobby:update', lobby);
-    io.emit(`lobby:update:${lobby.id}`, lobby);
+    const payload = { ...lobby, serverNow: Date.now() };
+    io.emit('lobby:update', payload);
+    io.emit(`lobby:update:${lobby.id}`, payload);
     log.debug('Emitted lobby update', { lobbyId: lobby.id });
   }
 }

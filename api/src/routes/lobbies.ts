@@ -250,7 +250,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const lobby = await lobbyService.getById(req.params.id);
     if (!lobby) return res.status(404).json({ success: false, error: 'Lobby not found' });
-    return res.json({ success: true, lobby });
+    return res.json({ success: true, lobby, serverNow: Date.now() });
   } catch (error) {
     log.error('Failed to get lobby', error);
     return res.status(500).json({ success: false, error: 'Failed to get lobby' });
