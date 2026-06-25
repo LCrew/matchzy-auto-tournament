@@ -865,6 +865,13 @@ class LobbyService {
       await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
       await delay(500);
 
+      if (lobby.gameMode === 'retake') {
+        await rconService.sendCommand(serverId, 'css_plugins load GameModeManager');
+        await delay(500);
+        await rconService.sendCommand(serverId, 'css_plugins load MenuManagerAPI');
+        await delay(500);
+      }
+
       const firstMap = maps[0];
 
       if (lobby.gameMode === 'practice') {
@@ -885,8 +892,11 @@ class LobbyService {
       } else if (GAMEMODE_MANAGER_MODES.has(lobby.gameMode)) {
         // GameModeManager modes: load plugin → css_gamemode (triggers its own
         // changelevel internally) → then changelevel to lobby's map if needed
-        await rconService.sendCommand(serverId, 'css_plugins load GameModeManager');
-        await delay(500);
+        // (retake already loaded GameModeManager above, skip duplicate)
+        if (lobby.gameMode !== 'retake') {
+          await rconService.sendCommand(serverId, 'css_plugins load GameModeManager');
+          await delay(500);
+        }
         for (const cmd of commands) {
           const result = await rconService.sendCommand(serverId, cmd);
           log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
