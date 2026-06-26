@@ -31,11 +31,18 @@
 	# Serve React frontend from /app/public
 	root * /app/public
 
+	# Serve sparkoo demo player directly — it's a standalone SPA, not the React app
+	handle /demo-player/* {
+		root * /app/public
+		file_server
+	}
+
 	# Handle SPA routing: try file, then fallback to index.html
 	@notAPI {
 		not path /api/*
 		not path /socket.io/*
 		not path /health
+		not path /demo-player/*
 		file {
 			try_files {path} /index.html
 		}
