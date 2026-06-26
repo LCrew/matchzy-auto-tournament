@@ -4,18 +4,40 @@ import {
   Box,
   Button,
   Chip,
+  Divider,
+  Drawer,
   IconButton,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  ListSubheader,
   Menu,
   MenuItem,
   Tooltip,
   Typography,
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import MenuIcon from '@mui/icons-material/Menu';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import CloseIcon from '@mui/icons-material/Close';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import GroupsIcon from '@mui/icons-material/Groups';
+import PersonIcon from '@mui/icons-material/Person';
+import StorageIcon from '@mui/icons-material/Storage';
+import CampaignIcon from '@mui/icons-material/Campaign';
+import SettingsIcon from '@mui/icons-material/Settings';
+import BuildIcon from '@mui/icons-material/Build';
+import MapIcon from '@mui/icons-material/Map';
+import DescriptionIcon from '@mui/icons-material/Description';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import BugReportIcon from '@mui/icons-material/BugReport';
+import HomeIcon from '@mui/icons-material/Home';
+import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
@@ -35,7 +57,6 @@ function readCachedPlayerAvatarUrl(steamId: string): string | undefined {
     if (typeof raw !== 'string') return undefined;
     const value = raw.trim();
     if (value === '') return undefined;
-    // Only accept http(s) URLs as cached avatars.
     if (!value.startsWith('http')) return undefined;
     return value;
   } catch {
@@ -43,19 +64,7 @@ function readCachedPlayerAvatarUrl(steamId: string): string | undefined {
   }
 }
 
-interface SharedNavBarProps {
-  /**
-   * Optional sidebar menu button for admin layouts.
-   * When rendered in public layouts, this is typically omitted.
-   */
-  showMenuButton?: boolean;
-  onMenuClick?: () => void;
-}
-
-export const SharedNavBar: React.FC<SharedNavBarProps> = ({
-  showMenuButton,
-  onMenuClick,
-}) => {
+export const SharedNavBar: React.FC = () => {
   const {
     playerSteamId,
     isAuthenticated,
@@ -70,12 +79,14 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
   } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { status: matchStatus, label: matchStatusLabel, loading: matchStatusLoading } =
     useCurrentMatchStatus(playerSteamId ?? null);
   const { showSnackbar } = useSnackbar();
+  const isDevelopment = useIsDevelopment();
 
-  const isDev = useIsDevelopment();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [adminPanelOpen, setAdminPanelOpen] = React.useState(false);
   const prevMatchRef = React.useRef<{ status: string; label: string | null } | null>(null);
   const [playerAvatarUrl, setPlayerAvatarUrl] = React.useState<string | undefined>(undefined);
   const [playerName, setPlayerName] = React.useState<string>('Player');
@@ -93,6 +104,11 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
   const handleLogout = () => {
     void logout();
     navigate('/login');
+  };
+
+  const handleAdminNav = (path: string) => {
+    navigate(path);
+    setAdminPanelOpen(false);
   };
 
   React.useEffect(() => {
@@ -130,7 +146,6 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
           }
         }
       } catch {
-        // Best-effort only; fall back to deterministic SVG avatar.
         if (isMounted) {
           setPlayerAvatarUrl(cachedAvatarUrl);
         }
@@ -176,7 +191,6 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
     prevMatchRef.current = now;
   }, [playerSteamId, matchStatusLoading, matchStatus, matchStatusLabel, showSnackbar, t]);
 
-  // Poll for active lobby status
   React.useEffect(() => {
     if (!playerSteamId) { setActiveLobby(null); return; }
     let mounted = true;
@@ -195,104 +209,224 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
     return () => { mounted = false; clearInterval(interval); };
   }, [playerSteamId]);
 
-  void matchStatus; void matchStatusLabel; // kept for snackbar notifications above
+  void matchStatus; void matchStatusLabel;
+
+  // Admin panel nav sections — only rendered/accessible when isAuthenticated
+  const adminNavSections = [
+    {
+      label: t('nav.tournamentSection'),
+      items: [
+        { label: t('nav.dashboard'), path: '/', icon: HomeIcon },
+        { label: t('nav.tournament'), path: '/tournament', icon: EmojiEventsIcon },
+        { label: t('nav.bracket'), path: '/bracket', icon: AccountTreeIcon },
+        { label: t('nav.matches'), path: '/matches', icon: SportsEsportsIcon },
+      ],
+    },
+    {
+      label: t('nav.resourcesSection'),
+      items: [
+        { label: t('nav.teams'), path: '/teams', icon: GroupsIcon },
+        { label: t('nav.players'), path: '/players', icon: PersonIcon },
+        { label: t('nav.servers'), path: '/servers', icon: StorageIcon },
+        { label: t('nav.maps'), path: '/maps', icon: MapIcon },
+      ],
+    },
+    {
+      label: t('nav.configurationSection'),
+      items: [
+        { label: t('nav.templates'), path: '/templates', icon: DescriptionIcon },
+        { label: t('nav.eloTemplates'), path: '/elo-templates', icon: TrendingUpIcon },
+        { label: t('nav.settings'), path: '/settings', icon: SettingsIcon },
+      ],
+    },
+    {
+      label: t('nav.systemSection'),
+      items: [
+        { label: t('nav.adminTools'), path: '/admin', icon: CampaignIcon },
+        ...(isDevelopment ? [{ label: t('nav.devTools'), path: '/dev', icon: BugReportIcon }] : []),
+      ],
+    },
+  ];
 
   return (
     <>
-      {showMenuButton && (
-        <IconButton
-          color="inherit"
-          aria-label="open drawer"
-          onClick={onMenuClick}
-          edge="start"
-          sx={{ mr: 2 }}
+      {/* Admin Panel button — leftmost, admin-only */}
+      {isAuthenticated && (
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<AdminPanelSettingsIcon />}
+          onClick={() => setAdminPanelOpen(true)}
+          sx={{
+            mr: 1.5,
+            fontWeight: 700,
+            borderRadius: 2,
+            borderColor: 'rgba(255,122,26,0.4)',
+            color: 'primary.main',
+            flexShrink: 0,
+            '&:hover': {
+              borderColor: 'primary.main',
+              boxShadow: '0 0 10px rgba(255,122,26,0.3)',
+            },
+          }}
         >
-          <MenuIcon />
-        </IconButton>
+          Admin Panel
+        </Button>
       )}
 
+      {/* Admin Panel Drawer */}
+      <Drawer
+        anchor="left"
+        open={adminPanelOpen}
+        onClose={() => setAdminPanelOpen(false)}
+        PaperProps={{ sx: { width: 280, bgcolor: 'background.paper' } }}
+      >
+        <Box display="flex" alignItems="center" justifyContent="space-between" px={2} py={1.5}>
+          <Box display="flex" alignItems="center" gap={1}>
+            <DashboardIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+            <Typography variant="h6" fontWeight={700} sx={{ fontFamily: '"Rajdhani", sans-serif' }}>
+              Admin Panel
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => setAdminPanelOpen(false)}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+        <Divider />
+        {adminNavSections.map((section, sectionIdx) => (
+          <Box key={section.label}>
+            <List
+              dense
+              subheader={
+                <ListSubheader sx={{ bgcolor: 'background.paper', lineHeight: '32px' }}>
+                  {section.label}
+                </ListSubheader>
+              }
+            >
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                return (
+                  <ListItemButton
+                    key={item.path}
+                    selected={isActive}
+                    onClick={() => handleAdminNav(item.path)}
+                    sx={{
+                      borderRadius: 1,
+                      mx: 1,
+                      mb: 0.25,
+                      '&.Mui-selected': {
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        '&:hover': { bgcolor: 'primary.dark' },
+                        '& .MuiListItemIcon-root': { color: 'primary.contrastText' },
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 36, color: isActive ? 'inherit' : 'text.secondary' }}>
+                      <Icon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                );
+              })}
+            </List>
+            {sectionIdx < adminNavSections.length - 1 && <Divider sx={{ mx: 2 }} />}
+          </Box>
+        ))}
+        <Box flexGrow={1} />
+        <Divider />
+        <Box px={2} py={1.5}>
+          <Button
+            fullWidth
+            variant="outlined"
+            color="error"
+            size="small"
+            startIcon={<BuildIcon />}
+            onClick={() => handleAdminNav('/admin')}
+            sx={{ borderRadius: 2 }}
+          >
+            Admin Tools
+          </Button>
+        </Box>
+      </Drawer>
+
+      {/* Logo */}
+      <Box
+        component={RouterLink}
+        to="/"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          textDecoration: 'none',
+        }}
+      >
+        <Box
+          component="img"
+          src="/faviconv2.png"
+          alt="CS-FULM SCRIM"
+          sx={{ height: 32 }}
+        />
+        <Typography
+          sx={{
+            fontFamily: '"High Speed", sans-serif',
+            fontSize: '1.3rem',
+            fontWeight: 400,
+            letterSpacing: '0.08em',
+            color: 'primary.main',
+            ml: 1,
+            lineHeight: 1,
+            textTransform: 'uppercase',
+          }}
+        >
+          CS-FULM
+        </Typography>
+      </Box>
+
+      {/* Public nav links */}
       <Box
         sx={{
           flexGrow: 1,
           display: 'flex',
           alignItems: 'center',
-          gap: 3,
-          minWidth: 0,
+          gap: 1.5,
+          ml: 3,
         }}
       >
-        <Box
+        <Button color="inherit" component={RouterLink} to="/player" size="small">
+          {t('nav.players')}
+        </Button>
+        <Button
+          color="inherit"
           component={RouterLink}
-          to="/"
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            textDecoration: 'none',
-          }}
+          to="/tournament/1/leaderboard"
+          size="small"
         >
-          <Box
-            component="img"
-            src="/faviconv2.png"
-            alt="CS-FULM SCRIM"
-            sx={{ height: 32 }}
-          />
-          <Typography
-            sx={{
-              fontFamily: '"High Speed", sans-serif',
-              fontSize: '1.3rem',
-              fontWeight: 400,
-              letterSpacing: '0.08em',
-              color: 'primary.main',
-              ml: 1,
-              lineHeight: 1,
-              textTransform: 'uppercase',
-            }}
-          >
-            CS-FULM
-          </Typography>
-        </Box>
-
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            flexShrink: 0,
-          }}
+          {t('nav.leaderboard')}
+        </Button>
+        <Button
+          color="primary"
+          component={RouterLink}
+          to="/lobby"
+          size="small"
+          startIcon={<SportsEsportsIcon />}
+          sx={{ fontWeight: 600 }}
         >
-          <Button color="inherit" component={RouterLink} to="/player" size="small">
-            {t('nav.players')}
-          </Button>
-          <Button
-            color="inherit"
-            component={RouterLink}
-            to="/tournament/1/leaderboard"
-            size="small"
-          >
-            {t('nav.leaderboard')}
-          </Button>
-          <Button
-            color="primary"
-            component={RouterLink}
-            to="/lobby"
-            size="small"
-            startIcon={<SportsEsportsIcon />}
-            sx={{ fontWeight: 600 }}
-          >
-            Lobby
-          </Button>
-          <Button
-            color="primary"
-            component={RouterLink}
-            to="/inventory"
-            size="small"
-            startIcon={<Inventory2Icon />}
-            sx={{ fontWeight: 600 }}
-          >
-            Inventory
-          </Button>
-        </Box>
+          Lobby
+        </Button>
+        <Button
+          color="primary"
+          component={RouterLink}
+          to="/inventory"
+          size="small"
+          startIcon={<Inventory2Icon />}
+          sx={{ fontWeight: 600 }}
+        >
+          Inventory
+        </Button>
       </Box>
 
+      {/* Right side */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center' }}>
           {activeLobby ? (
@@ -425,4 +559,3 @@ export const SharedNavBar: React.FC<SharedNavBarProps> = ({
     </>
   );
 };
-
