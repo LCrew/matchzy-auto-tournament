@@ -823,12 +823,8 @@ async function handleSeriesEnd(event: MatchZyEvent): Promise<void> {
       if (team1Score !== team2Score) {
         try {
           const cfg = typeof match.config === 'string' ? JSON.parse(match.config) : match.config;
-          const t1Players = (cfg?.team1?.players || [])
-            .map((p: { steamid?: string }) => p.steamid)
-            .filter((id: string | undefined): id is string => !!id && !id.startsWith('BOT_'));
-          const t2Players = (cfg?.team2?.players || [])
-            .map((p: { steamid?: string }) => p.steamid)
-            .filter((id: string | undefined): id is string => !!id && !id.startsWith('BOT_'));
+          const t1Players = extractSteamIdsFromPlayersField(cfg?.team1?.players);
+          const t2Players = extractSteamIdsFromPlayersField(cfg?.team2?.players);
           if (t1Players.length > 0 && t2Players.length > 0) {
             await updatePlayerRatings(t1Players, t2Players, team1Score > team2Score, matchSlug);
             log.success(`Updated ratings for lobby/manual match ${matchSlug}`);
@@ -1418,18 +1414,12 @@ async function trackPlayerStatsForManualMatch(
     }
 
     const cfg = parsed as {
-      team1?: { players?: Array<{ steamid?: string }> };
-      team2?: { players?: Array<{ steamid?: string }> };
+      team1?: { players?: unknown };
+      team2?: { players?: unknown };
     };
 
-    const team1Players =
-      cfg.team1?.players
-        ?.map((p) => (p.steamid ? { steamId: p.steamid } : null))
-        .filter((p): p is { steamId: string } => !!p?.steamId) ?? [];
-    const team2Players =
-      cfg.team2?.players
-        ?.map((p) => (p.steamid ? { steamId: p.steamid } : null))
-        .filter((p): p is { steamId: string } => !!p?.steamId) ?? [];
+    const team1Players = extractSteamIdsFromPlayersField(cfg.team1?.players).map((steamId) => ({ steamId }));
+    const team2Players = extractSteamIdsFromPlayersField(cfg.team2?.players).map((steamId) => ({ steamId }));
 
     if (team1Players.length === 0 && team2Players.length === 0) {
       log.warn('Cannot track manual match stats: no players found in config', { matchSlug });
@@ -1582,4 +1572,29 @@ async function checkAndAdvanceRound(completedRound: number): Promise<void> {
       emitBracketUpdate({ action: 'match_ready', matchSlug: match.slug });
     }
   }
+}
+
+/**
+ * Extract Steam IDs from a match config players field.
+ * Handles both MatchZy dict format ({ steamId: name }) and legacy array format
+ * ([{ steamid, name }]). Bots are excluded.
+ */
+function extractSteamIdsFromPlayersField(players: unknown): string[] {
+  if (!players) return [];
+
+  // Dict format used by lobby/MatchZy matches: { "76561...": "PlayerName" }
+  if (!Array.isArray(players) && typeof players === 'object') {
+    return Object.keys(players as Record<string, unknown>).filter(
+      (id) => !id.startsWith('BOT_')
+    );
+  }
+
+  // Array format used by some manual match configs: [{ steamid, name }]
+  if (Array.isArray(players)) {
+    return (players as Array<{ steamid?: string }>)
+      .map((p) => p.steamid)
+      .filter((id): id is string => !!id && !id.startsWith('BOT_'));
+  }
+
+  return [];
 }
