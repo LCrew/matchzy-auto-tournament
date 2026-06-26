@@ -70,7 +70,7 @@ export default function DemoReplayPage() {
 
   const playerUrl =
     matchSlug && hasDemo
-      ? `https://2d.sparko.cz/player?demourl=${encodeURIComponent(
+      ? `/demo-player/?demourl=${encodeURIComponent(
           `${window.location.origin}/api/demos/${matchSlug}/download/${selectedMapNumber}`
         )}`
       : null;

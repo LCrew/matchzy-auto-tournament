@@ -297,6 +297,7 @@ export default [
       'api/dist/**',
       'api/public/**',
       'client/dist/**',
+      'client/public/demo-player/**',
       'playwright-report/**',
       'logs/**',
       'site/**', // Generated documentation site
