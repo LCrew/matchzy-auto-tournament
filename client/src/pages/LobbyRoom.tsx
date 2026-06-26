@@ -661,10 +661,65 @@ export default function LobbyRoom() {
 
       {/* Teams */}
       <Box display="flex" gap={3} mb={3} flexDirection={{ xs: 'column', md: 'row' }}>
-        <TeamColumn team="team1" players={team1Players} color="#5B9BD5" />
+        {/* CT side — cyan/neon-blue running glow */}
+        <Box
+          sx={{
+            flex: 1,
+            position: 'relative',
+            borderRadius: 2,
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 'inherit',
+              padding: '2px',
+              background: 'conic-gradient(from 0deg, transparent 0deg, #00E5FF 50deg, #5BC8F5 70deg, transparent 110deg)',
+              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude',
+              animation: 'runGlowCT 4s linear infinite',
+              filter: 'blur(3px)',
+            },
+            '@keyframes runGlowCT': {
+              from: { transform: 'rotate(0deg)' },
+              to: { transform: 'rotate(360deg)' },
+            },
+          }}
+        >
+          <TeamColumn team="team1" players={team1Players} color="#5B9BD5" />
+        </Box>
+
         <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
         <Divider sx={{ display: { xs: 'block', md: 'none' } }} />
-        <TeamColumn team="team2" players={team2Players} color="#FF6B57" />
+
+        {/* T side — neon-red running glow, offset by half cycle */}
+        <Box
+          sx={{
+            flex: 1,
+            position: 'relative',
+            borderRadius: 2,
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 'inherit',
+              padding: '2px',
+              background: 'conic-gradient(from 0deg, transparent 0deg, #FF1744 50deg, #FF6B57 70deg, transparent 110deg)',
+              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude',
+              animation: 'runGlowT 4s linear infinite',
+              animationDelay: '-2s',
+              filter: 'blur(3px)',
+            },
+            '@keyframes runGlowT': {
+              from: { transform: 'rotate(0deg)' },
+              to: { transform: 'rotate(360deg)' },
+            },
+          }}
+        >
+          <TeamColumn team="team2" players={team2Players} color="#FF6B57" />
+        </Box>
       </Box>
 
       {/* Unassigned players pool */}
