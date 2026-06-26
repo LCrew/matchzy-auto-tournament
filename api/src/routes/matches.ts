@@ -383,9 +383,9 @@ router.get('/:slug.json', async (req: Request, res: Response) => {
 
     const { slug } = req.params;
 
-    // Fetch base URL once; used to inject matchzy_demo_upload_url into cvars.
-    // Null-safe: if not configured, we skip the injection rather than erroring.
-    const webhookBaseUrl = await getWebhookBaseUrl(req).catch(() => '');
+    // Base URL derived from the incoming request — always available, no DB lookup needed.
+    // MatchZy fetches this endpoint from the same host it uploads demos to.
+    const webhookBaseUrl = getBaseUrl(req);
 
     // 1) Load the match row
     const match = await db.queryOneAsync<DbMatchRow>('SELECT * FROM matches WHERE slug = ?', [
