@@ -664,13 +664,27 @@ class LobbyService {
       state.players.push(player);
     }
 
+    const isHost = steamId === lobby.createdBy;
+
     if (team === 'unassigned') {
-      if (player.isCaptain) throw new Error('Captains cannot move to spectators');
+      if (player.isCaptain && !isHost) throw new Error('Captains cannot move to spectators');
+      // Clear captain slot if host abandons a team
+      if (player.isCaptain && player.team !== 'unassigned') {
+        const oldTeam = player.team as 'team1' | 'team2';
+        if (state.captains[oldTeam] === steamId) state.captains[oldTeam] = '';
+        player.isCaptain = false;
+      }
       player.team = 'unassigned';
       return this.saveState(id, state);
     }
 
-    if (player.isCaptain && player.team !== team) throw new Error('Captains cannot switch teams');
+    if (player.isCaptain && player.team !== team && !isHost) throw new Error('Captains cannot switch teams');
+    // Host switching teams: vacate old captain slot
+    if (player.isCaptain && player.team !== team && isHost) {
+      const oldTeam = player.team as 'team1' | 'team2';
+      if (state.captains[oldTeam] === steamId) state.captains[oldTeam] = '';
+      player.isCaptain = false;
+    }
     const teamCount = state.players.filter((p) => p.team === team).length;
     if (player.team !== team && teamCount >= lobby.teamSize) throw new Error('Team is full');
 

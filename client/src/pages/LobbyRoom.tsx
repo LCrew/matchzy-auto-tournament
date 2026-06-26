@@ -433,7 +433,7 @@ export default function LobbyRoom() {
 
   const TeamColumn = ({ team, players, color }: { team: 'team1' | 'team2'; players: LobbyPlayer[]; color: string }) => {
     const slots = Array.from({ length: lobby.teamSize }, (_, i) => players[i] || null);
-    const canIJoin = canJoinTeams && me && me.team !== team && !me.isCaptain && players.length < lobby.teamSize;
+    const canIJoin = canJoinTeams && me && me.team !== team && (!me.isCaptain || isCreator) && players.length < lobby.teamSize;
     const canNewJoin = canJoinTeams && !me && players.length < lobby.teamSize;
 
     return (
@@ -603,7 +603,12 @@ export default function LobbyRoom() {
           {isCreator && !matchOver && (
             <>
               <Box sx={{ mt: 1 }} />
-              <GlowBorder glowColor="#5FBF8F" speed={2.5} borderRadius="8px">
+              <GlowBorder
+                glowColor="#5FBF8F"
+                speed={2.5}
+                borderRadius="8px"
+                disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
+              >
                 <ButtonGroup variant="contained" color="success" fullWidth sx={{ height: 44, borderRadius: 1, '& .MuiButton-root': { borderRadius: 1 } }}>
                   <Button
                     onClick={handleStartVeto}
@@ -751,7 +756,7 @@ export default function LobbyRoom() {
           )}
           {lobby.status === 'waiting' && (
             <Box sx={{ mt: 1.5, display: 'flex', gap: 1 }}>
-              {me && me.team !== 'unassigned' && !me.isCaptain && (
+              {me && me.team !== 'unassigned' && (!me.isCaptain || isCreator) && (
                 <Button variant="outlined" onClick={() => handleJoinTeam('unassigned')} sx={{ height: 36 }}>
                   Move to Spectators
                 </Button>
