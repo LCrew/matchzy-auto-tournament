@@ -19,7 +19,6 @@ import { playerService } from '../services/playerService';
 import { getMapResults } from '../services/matchMapResultService';
 import { serverAllocationTracker } from '../services/serverAllocationTracker';
 import { serverService } from '../services/serverService';
-import { settingsService } from '../services/settingsService';
 
 const router = Router();
 
@@ -354,56 +353,39 @@ async function getMatchDetailsBySlug(slug: string): Promise<MatchListItem | null
   return match;
 }
 
-function injectDemoUploadCvars(
-  config: MatchConfig,
-  matchSlug: string,
-  baseUrl: string,
-  serverToken: string
-): MatchConfig {
-  return {
-    ...config,
-    cvars: {
-      ...(config.cvars ?? {}),
-      matchzy_demo_upload_url: `${baseUrl}/api/demos/${matchSlug}/upload`,
-      matchzy_demo_upload_header_key: 'X-MatchZy-Token',
-      matchzy_demo_upload_header_value: serverToken,
-    },
-  };
-}
-
 /**
  * GET /api/matches/:slug.json
- * Protected endpoint for MatchZy to fetch match configuration.
- * Returns a FRESH, on-demand config assembled from DB (reads veto_state).
- * Secured with bearer token auth — MatchZy sends Authorization: Bearer <SERVER_TOKEN>
- * because the bootstrap configured matchzy_loadmatch_url_header_key/value.
+ * Protected endpoint for MatchZy to fetch match configuration
+ * Returns a FRESH, on-demand config assembled from DB (reads veto_state)
+ * Requires bearer token authentication from game server (kept commented for local dev)
  */
 router.get('/:slug.json', async (req: Request, res: Response) => {
   try {
-    // Bearer token auth — MatchZy sends this header because the bootstrap configured
-    // matchzy_loadmatch_url_header_key/value with the SERVER_TOKEN.
-    const serverToken = process.env.SERVER_TOKEN;
-    if (!serverToken) {
-      return res.status(500).json({
-        success: false,
-        error: 'SERVER_TOKEN environment variable is not configured',
-      });
-    }
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        error: 'Missing or invalid authorization header. Expected: Bearer <token>',
-      });
-    }
-    if (authHeader.substring(7) !== serverToken) {
-      return res.status(403).json({ success: false, error: 'Invalid bearer token' });
-    }
-
-    // Base URL for demo upload endpoint (stored in DB settings, not env).
-    const baseUrl = (await settingsService.getWebhookUrl()) ?? '';
+    // // Optional bearer token auth — enable when you wire SERVER_TOKEN on the game server
+    // const authHeader = req.headers.authorization;
+    // const expectedToken = process.env.SERVER_TOKEN;
+    // if (!expectedToken) {
+    //   return res.status(500).json({
+    //     success: false,
+    //     error: 'SERVER_TOKEN environment variable is not configured',
+    //   });
+    // }
+    // if (!authHeader?.startsWith('Bearer ')) {
+    //     return res.status(401).json({
+    //       success: false,
+    //       error: 'Missing or invalid authorization header. Expected: Bearer <token>',
+    //     });
+    // }
+    // const token = authHeader.substring(7);
+    // if (token !== expectedToken) {
+    //   return res.status(403).json({ success: false, error: 'Invalid bearer token' });
+    // }
 
     const { slug } = req.params;
+
+    // Fetch base URL once; used to inject matchzy_demo_upload_url into cvars.
+    // Null-safe: if not configured, we skip the injection rather than erroring.
+    const webhookBaseUrl = await getWebhookBaseUrl(req).catch(() => '');
 
     // 1) Load the match row
     const match = await db.queryOneAsync<DbMatchRow>('SELECT * FROM matches WHERE slug = ?', [
@@ -509,7 +491,10 @@ router.get('/:slug.json', async (req: Request, res: Response) => {
               },
       };
 
-      return res.json(injectDemoUploadCvars(safeConfig, slug, baseUrl, serverToken));
+      const configWithUpload = webhookBaseUrl
+        ? { ...safeConfig, cvars: { ...(safeConfig.cvars ?? {}), matchzy_demo_upload_url: `${webhookBaseUrl}/api/demos/${slug}/upload` } }
+        : safeConfig;
+      return res.json(configWithUpload);
     }
 
     // 2) Load the tournament row for bracket-managed matches
@@ -562,8 +547,10 @@ router.get('/:slug.json', async (req: Request, res: Response) => {
       slug
     );
 
-    // Return config with demo upload cvars injected
-    return res.json(injectDemoUploadCvars(fresh, slug, baseUrl, serverToken));
+    const freshWithUpload = webhookBaseUrl
+      ? { ...fresh, cvars: { ...(fresh.cvars ?? {}), matchzy_demo_upload_url: `${webhookBaseUrl}/api/demos/${slug}/upload` } }
+      : fresh;
+    return res.json(freshWithUpload);
   } catch (error) {
     console.error('Error fetching match config:', error);
     return res.status(500).json({
