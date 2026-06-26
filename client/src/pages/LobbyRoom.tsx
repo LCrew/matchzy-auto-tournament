@@ -54,6 +54,63 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 import { useIsDevelopment } from '../hooks/useIsDevelopment';
 import type { Lobby, LobbyPlayer, GameMode } from '../types/lobby.types';
 import io from 'socket.io-client';
+import { animate, motion, useMotionTemplate, useMotionValue } from 'motion/react';
+import { GlowBorder } from '../components/shared/GlowBorder';
+
+// Continuously rotating conic-gradient glow border.
+// colorRgb: '0,229,255' style (no # or rgba wrapper)
+// initialTurn: 0–1 offset so two instances are never in the same position
+const GlowBorderBox = ({
+  children,
+  colorRgb,
+  duration = 8,
+  initialTurn = 0,
+}: {
+  children: React.ReactNode;
+  colorRgb: string;
+  duration?: number;
+  initialTurn?: number;
+}) => {
+  const turn = useMotionValue(initialTurn);
+
+  useEffect(() => {
+    const anim = animate(turn, initialTurn + 1, {
+      ease: 'linear',
+      duration,
+      repeat: Infinity,
+    });
+    return () => anim.stop();
+  }, [turn, duration, initialTurn]);
+
+  const gradient = useMotionTemplate`conic-gradient(from ${turn}turn, transparent 0%, transparent 52%, rgba(${colorRgb},0.04) 60%, rgba(${colorRgb},0.65) 69%, rgba(${colorRgb},1) 75%, rgba(${colorRgb},0.65) 81%, rgba(${colorRgb},0.12) 88%, transparent 96%)`;
+
+  return (
+    <Box sx={{ flex: 1, position: 'relative', p: '2px', borderRadius: 1 }}>
+      {/* Rotating gradient layer — visible only through the 2px padding ring */}
+      <motion.div
+        style={{ backgroundImage: gradient, position: 'absolute', inset: 0, borderRadius: 'inherit' }}
+      />
+      {/* Inner content — covers the gradient so only the 2px ring shows as the border */}
+      <Box sx={{ position: 'relative', borderRadius: 'inherit', overflow: 'hidden', bgcolor: 'background.default', p: 1 }}>
+        {children}
+        {/* Blurred glow spill — subtle inner edge halo matching the border color */}
+        <motion.div
+          style={{
+            backgroundImage: gradient,
+            maskImage: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, black 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, black 100%)',
+            position: 'absolute',
+            inset: '-50%',
+            opacity: 0.35,
+            filter: 'blur(20px)',
+            pointerEvents: 'none',
+            zIndex: 10,
+          }}
+        />
+      </Box>
+    </Box>
+  );
+};
 
 interface MapItem {
   id: string;
@@ -546,23 +603,25 @@ export default function LobbyRoom() {
           {isCreator && !matchOver && (
             <>
               <Box sx={{ mt: 1 }} />
-              <ButtonGroup variant="contained" color="success" fullWidth sx={{ height: 44, borderRadius: 1, '& .MuiButton-root': { borderRadius: 1 } }}>
-                <Button
-                  onClick={handleStartVeto}
-                  disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
-                  startIcon={<PlayArrowIcon />}
-                  sx={{ flex: 4, fontWeight: 700 }}
-                >
-                  Start
-                </Button>
-                <Button
-                  onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setStartMenuPos({ x: rect.left, y: rect.top }); }}
-                  disabled={executing}
-                  sx={{ flex: 1, minWidth: 0, px: 0 }}
-                >
-                  <ArrowDropDownIcon />
-                </Button>
-              </ButtonGroup>
+              <GlowBorder glowColor="#5FBF8F" speed={2.5} borderRadius="8px">
+                <ButtonGroup variant="contained" color="success" fullWidth sx={{ height: 44, borderRadius: 1, '& .MuiButton-root': { borderRadius: 1 } }}>
+                  <Button
+                    onClick={handleStartVeto}
+                    disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
+                    startIcon={<PlayArrowIcon />}
+                    sx={{ flex: 4, fontWeight: 700 }}
+                  >
+                    Start
+                  </Button>
+                  <Button
+                    onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setStartMenuPos({ x: rect.left, y: rect.top }); }}
+                    disabled={executing}
+                    sx={{ flex: 1, minWidth: 0, px: 0 }}
+                  >
+                    <ArrowDropDownIcon />
+                  </Button>
+                </ButtonGroup>
+              </GlowBorder>
             </>
           )}
         </Stack>
@@ -660,87 +719,19 @@ export default function LobbyRoom() {
       )}
 
       {/* Teams */}
-      <Box
-        display="flex"
-        gap={3}
-        mb={3}
-        flexDirection={{ xs: 'column', md: 'row' }}
-        sx={{
-          '@keyframes runGlowCT': {
-            from: { strokeDashoffset: 0 },
-            to: { strokeDashoffset: -10080 },
-          },
-          '@keyframes runGlowT': {
-            from: { strokeDashoffset: 0 },
-            to: { strokeDashoffset: -10080 },
-          },
-        }}
-      >
-        {/* CT side — cyan/neon-blue trail follows the border */}
-        <Box sx={{ flex: 1, position: 'relative' }}>
-          <svg
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              overflow: 'visible',
-              pointerEvents: 'none',
-            }}
-          >
-            <rect
-              x="1" y="1"
-              rx="8" ry="8"
-              fill="none"
-              stroke="#00E5FF"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeDasharray="80 10000"
-              style={{
-                width: 'calc(100% - 2px)',
-                height: 'calc(100% - 2px)',
-                animation: 'runGlowCT 4s linear infinite',
-                filter: 'drop-shadow(0 0 4px #00E5FF) drop-shadow(0 0 10px rgba(0,229,255,0.7))',
-              }}
-            />
-          </svg>
+      <Box display="flex" gap={3} mb={3} flexDirection={{ xs: 'column', md: 'row' }}>
+        {/* CT side — cyan/neon-blue continuous rotating glow */}
+        <GlowBorderBox colorRgb="0,229,255" duration={8} initialTurn={0}>
           <TeamColumn team="team1" players={team1Players} color="#5B9BD5" />
-        </Box>
+        </GlowBorderBox>
 
         <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
         <Divider sx={{ display: { xs: 'block', md: 'none' } }} />
 
-        {/* T side — neon-red trail, offset so both trails are never on the same edge */}
-        <Box sx={{ flex: 1, position: 'relative' }}>
-          <svg
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              overflow: 'visible',
-              pointerEvents: 'none',
-            }}
-          >
-            <rect
-              x="1" y="1"
-              rx="8" ry="8"
-              fill="none"
-              stroke="#FF1744"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeDasharray="80 10000"
-              style={{
-                width: 'calc(100% - 2px)',
-                height: 'calc(100% - 2px)',
-                animation: 'runGlowT 4s linear infinite',
-                animationDelay: '-2s',
-                filter: 'drop-shadow(0 0 4px #FF1744) drop-shadow(0 0 10px rgba(255,23,68,0.7))',
-              }}
-            />
-          </svg>
+        {/* T side — neon-red, starts half a turn offset so they're always opposite */}
+        <GlowBorderBox colorRgb="255,23,68" duration={8} initialTurn={0.5}>
           <TeamColumn team="team2" players={team2Players} color="#FF6B57" />
-        </Box>
+        </GlowBorderBox>
       </Box>
 
       {/* Unassigned players pool */}

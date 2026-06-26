@@ -24,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import type { Lobby } from '../types/lobby.types';
 import io from 'socket.io-client';
+import { GlowBorder } from '../components/shared/GlowBorder';
 
 const CHIP_SX = { height: 24, fontSize: '0.75rem', fontWeight: 600 };
 
@@ -132,9 +133,11 @@ export default function Lobbies() {
             Lobby
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate} disabled={creating}>
-          {creating ? 'Creating...' : 'Create Match'}
-        </Button>
+        <GlowBorder glowColor="#FF7A1A" speed={3} display="inline-flex" borderRadius="44px">
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate} disabled={creating}>
+            {creating ? 'Creating...' : 'Create Match'}
+          </Button>
+        </GlowBorder>
       </Box>
 
 
@@ -148,9 +151,11 @@ export default function Lobbies() {
             <Typography color="text.secondary" sx={{ mb: 3 }}>
               Create a match to get started. Friends can join from this page.
             </Typography>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate} disabled={creating}>
-              Create Match
-            </Button>
+            <GlowBorder glowColor="#FF7A1A" speed={3} display="inline-flex" borderRadius="44px">
+              <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate} disabled={creating}>
+                Create Match
+              </Button>
+            </GlowBorder>
           </CardContent>
         </Card>
       ) : (
@@ -172,35 +177,33 @@ export default function Lobbies() {
               : '#8C95A3';
 
             return (
-              <Card
+              <GlowBorder
                 key={lobby.id}
+                glowColor="#FF7A1A"
+                speed={isLive ? 2 : isInLobby ? 2.5 : 4}
+                borderRadius="8px"
                 sx={{
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  border: '2px solid',
-                  borderColor: isInLobby ? 'primary.main' : isLive ? 'rgba(255, 122, 26, 0.6)' : 'transparent',
                   opacity: isFinished ? 0.45 : 1,
-                  bgcolor: isFinished ? 'action.disabledBackground' : 'background.paper',
-                  animation: isLive
-                    ? 'lobbyGlow 2s ease-in-out infinite'
-                    : `cardEnter 220ms ease-out both`,
-                  animationDelay: isLive ? undefined : `${Math.min(index, 6) * 40}ms`,
+                  animation: `cardEnter 220ms ease-out both`,
+                  animationDelay: `${Math.min(index, 6) * 40}ms`,
                   '@keyframes cardEnter': {
                     from: { opacity: 0, transform: 'translateY(12px)' },
                     to: { opacity: 1, transform: 'translateY(0)' },
                   },
-                  '@keyframes lobbyGlow': {
-                    '0%, 100%': { boxShadow: '0 0 4px rgba(255, 122, 26, 0.25)' },
-                    '50%': { boxShadow: '0 0 20px rgba(255, 122, 26, 0.65)' },
-                  },
+                }}
+                onClick={() => handleJoin(lobby.id)}
+              >
+              <Card
+                sx={{
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  bgcolor: isFinished ? 'action.disabledBackground' : 'background.paper',
                   '&:hover': {
-                    borderColor: 'primary.main',
                     transform: 'translateY(-2px)',
                     boxShadow: 6,
                     bgcolor: 'action.hover',
                   },
                 }}
-                onClick={() => handleJoin(lobby.id)}
               >
                 <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
                   <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -260,6 +263,7 @@ export default function Lobbies() {
                   </Box>
                 </CardContent>
               </Card>
+              </GlowBorder>
             );
           })}
         </Stack>

@@ -352,8 +352,6 @@ class LobbyService {
     }
 
     const state = lobby.state;
-    const unassigned = state.players.filter((p) => p.team === 'unassigned');
-    if (unassigned.length > 0) throw new Error('All players must be assigned to a team');
 
     const t1Count = state.players.filter((p) => p.team === 'team1').length;
     const t2Count = state.players.filter((p) => p.team === 'team2').length;
