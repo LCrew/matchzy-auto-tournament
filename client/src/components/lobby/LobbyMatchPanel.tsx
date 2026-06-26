@@ -21,6 +21,7 @@ interface LobbyMatchPanelProps {
   server: { name: string; host: string; port: number };
   getMapName: (id: string) => string;
   getMapImage?: (id: string) => string;
+  matchOver?: boolean;
 }
 
 const STATUS_DISPLAY: Record<string, { label: string; color: 'warning' | 'info' | 'success' | 'default' }> = {
@@ -41,6 +42,7 @@ export function LobbyMatchPanel({
   server,
   getMapName,
   getMapImage,
+  matchOver,
 }: LobbyMatchPanelProps) {
   const [copied, setCopied] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -126,27 +128,29 @@ export function LobbyMatchPanel({
     <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
       <CardContent>
         <Box display="flex" flexDirection="column" gap={2}>
-          {/* Connect bar */}
-          <Box display="flex" gap={1} alignItems="center">
-            <Button
-              variant="contained"
-              color={connected ? 'success' : 'primary'}
-              startIcon={<SportsEsportsIcon />}
-              onClick={handleConnect}
-              sx={{ flex: 1, py: 1, fontWeight: 700, borderRadius: 2 }}
-            >
-              {connected ? 'Connecting...' : 'Connect'}
-            </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
-              onClick={handleCopy}
-              sx={{ borderRadius: 2, minWidth: 0, px: 1.5 }}
-            >
-              {address}
-            </Button>
-          </Box>
+          {/* Connect bar — hidden when match is over */}
+          {!matchOver && (
+            <Box display="flex" gap={1} alignItems="center">
+              <Button
+                variant="contained"
+                color={connected ? 'success' : 'primary'}
+                startIcon={<SportsEsportsIcon />}
+                onClick={handleConnect}
+                sx={{ flex: 1, py: 1, fontWeight: 700, borderRadius: 2 }}
+              >
+                {connected ? 'Connecting...' : 'Connect'}
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
+                onClick={handleCopy}
+                sx={{ borderRadius: 2, minWidth: 0, px: 1.5 }}
+              >
+                {address}
+              </Button>
+            </Box>
+          )}
 
           <Typography variant="caption" color="text.secondary">
             {server.name}

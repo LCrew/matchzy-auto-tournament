@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Typography,
   Avatar,
   Stack,
@@ -86,7 +87,8 @@ export default function LobbyRoom() {
   const [lobby, setLobby] = useState<Lobby | null>(null);
   const { showError, showSuccess } = useSnackbar();
   const [executing, setExecuting] = useState(false);
-  const [forceServerId, setForceServerId] = useState('');
+  const [endingMatch, setEndingMatch] = useState(false);
+  const [showForceAllocate, setShowForceAllocate] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: string; title: string; message: string } | null>(null);
   const [playerMenu, setPlayerMenu] = useState<{ steamId: string; x: number; y: number } | null>(null);
   const [startMenuPos, setStartMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -180,6 +182,31 @@ export default function LobbyRoom() {
     return () => clearInterval(interval);
   }, [veto?.turnDeadline, veto?.completed, serverClockOffset]);
 
+  // Auto-create match when lobby reaches ready state (no user click needed)
+  useEffect(() => {
+    if (!lobby || lobby.status !== 'ready' || lobby.matchSlug || lobby.server) return;
+    if (lobby.createdBy !== playerSteamId) return;
+    if (executing) return;
+    setExecuting(true);
+    api.fetch(`/api/lobbies/${id}/create-match`, { method: 'POST' })
+      .then((res) => { if (res.lobby) setLobby(res.lobby); })
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : 'Failed to create match';
+        try { const p = JSON.parse(msg); showError(p.error || p.message || msg); } catch { showError(msg); }
+      })
+      .finally(() => setExecuting(false));
+  }, [lobby?.status, lobby?.matchSlug, lobby?.server, playerSteamId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // After 15 s with no server assigned, reveal Force Allocate options
+  useEffect(() => {
+    if (lobby?.matchSlug && !lobby.server) {
+      setShowForceAllocate(false);
+      const timer = setTimeout(() => setShowForceAllocate(true), 15_000);
+      return () => clearTimeout(timer);
+    }
+    setShowForceAllocate(false);
+  }, [lobby?.matchSlug, lobby?.server]);
+
   if (!lobby) {
     return (
       <Box p={4}>
@@ -244,6 +271,8 @@ export default function LobbyRoom() {
       await act('leave');
       navigate('/lobby');
     } else if (confirmAction.type === 'end-match') {
+      setConfirmAction(null);
+      setEndingMatch(true);
       if (lobby?.matchSlug) {
         try {
           await api.fetch(`/api/matches/${lobby.matchSlug}/end`, { method: 'POST' });
@@ -252,7 +281,9 @@ export default function LobbyRoom() {
           showError('Failed to end match gracefully');
         }
       }
+      setEndingMatch(false);
       await loadLobby();
+      return;
     } else if (confirmAction.type === 'cancel') {
       // If a match is running, force-cancel it on the server first
       if (lobby?.matchSlug) {
@@ -496,7 +527,7 @@ export default function LobbyRoom() {
               <Button variant="outlined" fullWidth color="warning" onClick={() => rconCmd('css_restart', 'Rebooting...')} disabled={executing} sx={BTN}>Reboot Server</Button>
               <Button variant="outlined" fullWidth color="warning" onClick={() => rconCmd('css_skipveto', 'Veto skipped')} disabled={executing} sx={BTN}>Skip Veto</Button>
               <Button variant="outlined" fullWidth color="warning" onClick={() => rconCmd('mp_warmup_end', 'Warmup ended')} disabled={executing} sx={BTN}>End Warmup</Button>
-              <Button variant="outlined" fullWidth color="error" onClick={() => setConfirmAction({ type: 'end-match', title: 'End Match', message: 'Are you sure you want to end this match? The current scores will be preserved.' })} disabled={executing} sx={BTN}>End Match</Button>
+              <Button variant="outlined" fullWidth color="error" onClick={() => setConfirmAction({ type: 'end-match', title: 'End Match', message: 'Are you sure you want to end this match? The current scores will be preserved.' })} disabled={executing || endingMatch} startIcon={endingMatch ? <CircularProgress size={14} color="inherit" /> : undefined} sx={BTN}>{endingMatch ? 'Ending...' : 'End Match'}</Button>
             </>
           )}
 
@@ -810,6 +841,7 @@ export default function LobbyRoom() {
             maps={veto?.completed ? veto.pickedMaps : lobby.mapPool}
             server={lobby.server}
             getMapName={getMapName}
+            matchOver={matchOver}
             getMapImage={(mapId) => {
               const m = allMaps.find((am) => am.id === mapId);
               return m?.imageUrl || `https://raw.githubusercontent.com/sivert-io/cs2-server-manager/master/map_thumbnails/${mapId}.webp`;
@@ -818,7 +850,7 @@ export default function LobbyRoom() {
         </Box>
       )}
 
-      {/* Ready but no server yet */}
+      {/* Ready — auto-creating match */}
       {lobby.status === 'ready' && !lobby.server && !lobby.matchSlug && (
         <Card sx={{ mb: 3 }}>
           <CardContent sx={{ textAlign: 'center', py: 3 }}>
@@ -826,23 +858,17 @@ export default function LobbyRoom() {
               {veto?.completed ? 'Maps Selected' : 'Ready to Start'}
             </Typography>
             {veto?.completed && (
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 {veto.pickedMaps.map(getMapName).join(', ')}
               </Typography>
             )}
             {isCreator && (
-              <Stack spacing={2} alignItems="center">
-                <Button
-                  variant="contained"
-                  color="success"
-                  size="large"
-                  onClick={() => act('create-match')}
-                  disabled={executing}
-                  sx={{ px: 4, fontWeight: 700, whiteSpace: 'nowrap' }}
-                >
-                  {executing ? 'Creating...' : 'Start Match'}
-                </Button>
-              </Stack>
+              <Box display="flex" alignItems="center" justifyContent="center" gap={1} mt={1}>
+                {executing && <CircularProgress size={18} />}
+                <Typography variant="body2" color="text.secondary">
+                  {executing ? 'Creating match...' : 'Starting match...'}
+                </Typography>
+              </Box>
             )}
           </CardContent>
         </Card>
@@ -852,46 +878,49 @@ export default function LobbyRoom() {
       {lobby.matchSlug && !lobby.server && (
         <Card sx={{ mb: 3 }}>
           <CardContent sx={{ textAlign: 'center', py: 3 }}>
-            <Typography variant="h6" fontWeight={700} gutterBottom>Allocating Server...</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Box display="flex" alignItems="center" justifyContent="center" gap={1} mb={1}>
+              <CircularProgress size={18} />
+              <Typography variant="h6" fontWeight={700}>Allocating Server...</Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary">
               Match created. Waiting for a server to become available.
             </Typography>
-            {isCreator && (
-              <Box display="flex" gap={1} justifyContent="center" alignItems="center">
-                <FormControl size="small" sx={{ minWidth: 260 }}>
-                  <InputLabel>Server</InputLabel>
-                  <Select value={forceServerId} label="Server" onChange={(e) => setForceServerId(e.target.value)}>
-                    <MenuItem value="" disabled><em>Select a server</em></MenuItem>
-                    {servers.map((s) => (
-                      <MenuItem key={s.id} value={s.id}>
-                        {s.name} ({s.host}:{s.port})
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <Button
-                  variant="contained"
-                  color="warning"
-                  disabled={executing || !forceServerId}
-                  onClick={async () => {
-                    setExecuting(true);
-                    try {
-                      await api.fetch(`/api/matches/${lobby.matchSlug}/allocate`, {
-                        method: 'POST',
-                        body: JSON.stringify({ serverId: forceServerId }),
-                      });
-                      await loadLobby();
-                    } catch (err) {
-                      let msg = err instanceof Error ? err.message : 'Failed to allocate';
-                      try { const p = JSON.parse(msg); msg = p.error || p.message || msg; } catch { /* not JSON */ }
-                      showError(msg);
-                    } finally {
-                      setExecuting(false);
-                    }
-                  }}
-                >
-                  Force Allocate
-                </Button>
+            {showForceAllocate && isCreator && servers.length > 0 && (
+              <Box mt={2} textAlign="left">
+                <Typography variant="body2" color="warning.main" mb={1} fontWeight={600}>
+                  No server became available. Force-allocate to a specific server:
+                </Typography>
+                <Stack spacing={1}>
+                  {servers.map((s) => (
+                    <Box key={s.id} display="flex" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2">{s.name} <Typography component="span" variant="caption" color="text.secondary">({s.host}:{s.port})</Typography></Typography>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="warning"
+                        disabled={executing}
+                        onClick={async () => {
+                          setExecuting(true);
+                          try {
+                            await api.fetch(`/api/matches/${lobby.matchSlug}/allocate`, {
+                              method: 'POST',
+                              body: JSON.stringify({ serverId: s.id }),
+                            });
+                            await loadLobby();
+                          } catch (err) {
+                            let msg = err instanceof Error ? err.message : 'Failed to allocate';
+                            try { const p = JSON.parse(msg); msg = p.error || p.message || msg; } catch { /* not JSON */ }
+                            showError(msg);
+                          } finally {
+                            setExecuting(false);
+                          }
+                        }}
+                      >
+                        Force
+                      </Button>
+                    </Box>
+                  ))}
+                </Stack>
               </Box>
             )}
           </CardContent>
