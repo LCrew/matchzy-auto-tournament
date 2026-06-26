@@ -880,7 +880,18 @@ export default function Layout() {
                 {headerActions && <Box>{headerActions}</Box>}
               </Box>
             )}
-            <Outlet />
+            <Box
+              key={location.key}
+              sx={{
+                animation: 'pageEnter 180ms ease-out',
+                '@keyframes pageEnter': {
+                  from: { opacity: 0, transform: 'scale(0.98)' },
+                  to: { opacity: 1, transform: 'scale(1)' },
+                },
+              }}
+            >
+              <Outlet />
+            </Box>
           </Box>
         </Box>
       </Box>
