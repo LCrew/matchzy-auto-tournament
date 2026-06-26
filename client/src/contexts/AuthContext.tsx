@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 
 const PLAYER_AVATAR_CACHE_KEY_PREFIX = 'mat.playerAvatarUrl:';
 
@@ -277,11 +277,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const loginWithSteam = () => {
+  const loginWithSteam = useCallback(() => {
     window.location.href = '/api/auth/steam';
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     const steamIdToClear = playerSteamId;
     setIsAdmin(false);
     setPlayerSteamId(null);
@@ -315,27 +315,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // should not block the UI from logging out.
       console.warn('Failed to call /api/auth/logout', error);
     }
-  };
+  }, [playerSteamId]);
+
+  const contextValue = useMemo(
+    () => ({
+      loginWithSteam,
+      logout,
+      isAuthenticated: isAdmin && !viewAsUser,
+      playerSteamId,
+      isPlayerAuthenticated: !!playerSteamId,
+      needsSteamLink: isAdmin && !viewAsUser && !adminHasSteamLinked,
+      isLoading,
+      adminProvider,
+      adminProfileName,
+      adminProfileAvatarUrl,
+      hasPlayerRecord,
+      isRealAdmin: isAdmin,
+      viewAsUser,
+      setViewAsUser,
+    }),
+    [
+      loginWithSteam,
+      logout,
+      isAdmin,
+      viewAsUser,
+      playerSteamId,
+      adminHasSteamLinked,
+      isLoading,
+      adminProvider,
+      adminProfileName,
+      adminProfileAvatarUrl,
+      hasPlayerRecord,
+    ]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        loginWithSteam,
-        logout,
-        isAuthenticated: isAdmin && !viewAsUser,
-        playerSteamId,
-        isPlayerAuthenticated: !!playerSteamId,
-        needsSteamLink: isAdmin && !viewAsUser && !adminHasSteamLinked,
-        isLoading,
-        adminProvider,
-        adminProfileName,
-        adminProfileAvatarUrl,
-        hasPlayerRecord,
-        isRealAdmin: isAdmin,
-        viewAsUser,
-        setViewAsUser,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

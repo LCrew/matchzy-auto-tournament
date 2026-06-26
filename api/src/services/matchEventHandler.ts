@@ -747,9 +747,9 @@ async function handleSeriesEnd(event: MatchZyEvent): Promise<void> {
     return;
   }
 
-  // Idempotency guard: if this match has already been finalized with a winner
-  // and marked as completed, skip re-processing duplicate series_end events.
-  if (match.status === 'completed' && match.winner_id) {
+  // Idempotency guard: if this match has already been completed (including draws
+  // where winner_id is intentionally null), skip re-processing duplicate events.
+  if (match.status === 'completed') {
     log.warn('Ignoring duplicate series_end for already completed match', {
       matchId: event.matchid,
       slug: match.slug,

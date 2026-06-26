@@ -563,7 +563,7 @@ export class RconService {
     /**
      * End current match (MatchZy)
      */
-    endMatch: (serverId: string) => this.sendCommand(serverId, 'css_restart'),
+    endMatch: (serverId: string) => this.sendCommand(serverId, 'matchzy_end_match'),
 
     /**
      * Pause match (MatchZy)

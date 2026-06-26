@@ -89,7 +89,7 @@ export async function updatePlayerRatings(
     }
     // Fetch all players with their current ratings
     const allPlayerIds = [...team1Players, ...team2Players];
-    const players = await Promise.all(
+    const playerResults = await Promise.allSettled(
       allPlayerIds.map(async (playerId) => {
         const player = await db.queryOneAsync<{
           id: string;
@@ -107,6 +107,29 @@ export async function updatePlayerRatings(
         return player;
       })
     );
+
+    playerResults.forEach((result, i) => {
+      if (result.status === 'rejected') {
+        log.warn('[RATINGS] Skipping player for rating update', {
+          playerId: allPlayerIds[i],
+          reason: result.reason instanceof Error ? result.reason.message : String(result.reason),
+        });
+      }
+    });
+
+    const players = playerResults
+      .filter(
+        (
+          r
+        ): r is PromiseFulfilledResult<{
+          id: string;
+          current_elo: number;
+          openskill_mu: number;
+          openskill_sigma: number;
+          match_count: number;
+        }> => r.status === 'fulfilled'
+      )
+      .map((r) => r.value);
 
     // Separate into teams
     const team1PlayerData = players.filter((p) => team1Players.includes(p.id));

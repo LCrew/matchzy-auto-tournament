@@ -26,6 +26,7 @@ import Templates from './pages/Templates';
 import ELOTemplates from './pages/ELOTemplates';
 import Layout from './components/layout/Layout';
 import NotFound from './pages/NotFound';
+import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import Lobbies from './pages/Lobbies';
 import LobbyRoom from './pages/LobbyRoom';
 import Inventory from './pages/Inventory';
@@ -244,7 +245,9 @@ export default function App() {
         <AuthProvider>
           <SnackbarProvider>
             <PageHeaderProvider>
-              <AppRoutes />
+              <ErrorBoundary>
+                <AppRoutes />
+              </ErrorBoundary>
             </PageHeaderProvider>
           </SnackbarProvider>
         </AuthProvider>

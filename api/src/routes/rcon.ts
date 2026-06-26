@@ -26,7 +26,7 @@ router.get('/test/:serverId', async (req: Request, res: Response) => {
 
     return res.status(statusCode).json(result);
   } catch (error) {
-    console.error('Error testing connection:', error);
+    log.error('Error testing connection:', error as Error);
     return res.status(500).json({
       success: false,
       error: 'Failed to test connection',
@@ -55,7 +55,7 @@ router.get('/test', async (_req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error testing connections:', error);
+    log.error('Error testing connections:', error as Error);
     return res.status(500).json({
       success: false,
       error: 'Failed to test connections',

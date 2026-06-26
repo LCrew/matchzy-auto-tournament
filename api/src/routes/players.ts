@@ -157,7 +157,7 @@ router.get('/find', async (req: Request, res: Response) => {
  */
 router.get('/public-selection', async (_req: Request, res: Response) => {
   try {
-    const players = await playerService.getAllPlayers();
+    const { players } = await playerService.getAllPlayers(10000, 0);
 
     // Return only the fields needed for public selection/autocomplete
     const simplifiedPlayers = players.map((p) => ({
@@ -194,7 +194,7 @@ router.get('/public-selection', async (_req: Request, res: Response) => {
 router.get('/selection', requireAuth, async (req: Request, res: Response) => {
   try {
     const { teamId } = req.query;
-    const players = await playerService.getAllPlayers();
+    const { players } = await playerService.getAllPlayers(10000, 0);
 
     // If teamId provided, mark which players are already in that team
     let teamPlayerIds: string[] = [];
@@ -1418,12 +1418,17 @@ router.use(requireAuth);
  * GET /api/players
  * Get all players (for admin management)
  */
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
-    const players = await playerService.getAllPlayers();
+    const limit = Math.min(Number(req.query.limit) || 100, 1000);
+    const offset = Number(req.query.offset) || 0;
+    const { players, total } = await playerService.getAllPlayers(limit, offset);
     return res.json({
       success: true,
       count: players.length,
+      total,
+      limit,
+      offset,
       players,
     });
   } catch (error) {

@@ -966,6 +966,19 @@ class LobbyService {
     if (!lobby) throw new Error('Lobby not found');
     if (!isAdmin && lobby.createdBy !== requesterId) throw new Error('Only the lobby creator or an admin can cancel');
 
+    this.clearVetoTimer(id);
+
+    // End the match on the CS2 server if one is active, so the server is freed
+    // and the match doesn't stay live when the lobby is deleted.
+    if (lobby.server?.id) {
+      try {
+        await rconService.sendCommand(lobby.server.id, 'matchzy_end_match');
+        log.info(`[LOBBY CANCEL] Sent matchzy_end_match to server ${lobby.server.id} for lobby ${id}`);
+      } catch (err) {
+        log.warn(`[LOBBY CANCEL] Failed to send end-match RCON (continuing anyway)`, err as Error);
+      }
+    }
+
     await this.updateStatus(id, 'cancelled');
     emitLobbyDeleted(id);
   }

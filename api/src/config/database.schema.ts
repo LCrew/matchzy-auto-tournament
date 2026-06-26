@@ -252,6 +252,9 @@ export function getSchemaSQL(): string {
     CREATE INDEX IF NOT EXISTS idx_players_name ON players(name);
     CREATE INDEX IF NOT EXISTS idx_players_elo ON players(current_elo);
 
+    CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    CREATE INDEX IF NOT EXISTS idx_players_name_trgm ON players USING GIN(name gin_trgm_ops);
+
     -- Auth identities table: links external auth providers (Discord, Keycloak, GitHub, etc.)
     -- to a Steam player ID so that once a user has linked Steam, future logins via
     -- the same provider automatically resolve their Steam identity.

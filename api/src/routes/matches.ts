@@ -1558,7 +1558,7 @@ router.patch('/:slug/status', requireAuth, async (req: Request, res: Response) =
 /**
  * POST /api/matches/:slug/end
  * Gracefully end a match, preserving scores and marking as completed (authenticated).
- * Sends get5_endmatch to trigger a natural series_end. If the match isn't
+ * Sends matchzy_end_match to trigger a natural series_end. If the match isn't
  * completed within a timeout, manually finalizes it with the last known scores.
  */
 router.post('/:slug/end', requireAuth, async (req: Request, res: Response) => {
@@ -1583,8 +1583,8 @@ router.post('/:slug/end', requireAuth, async (req: Request, res: Response) => {
     if (serverId) {
       try {
         const { rconService } = await import('../services/rconService');
-        await rconService.executeCommand(serverId, 'get5_endmatch');
-        log.info(`Sent get5_endmatch to server ${serverId} for match ${slug}`);
+        await rconService.executeCommand(serverId, 'matchzy_end_match');
+        log.info(`Sent matchzy_end_match to server ${serverId} for match ${slug}`);
       } catch (rconError) {
         log.warn(`Failed to send end command to server for ${slug}: ${rconError}`);
       }
@@ -1691,7 +1691,7 @@ router.post('/:slug/force-cancel', requireAuth, async (req: Request, res: Respon
     if (serverId) {
       try {
         const { rconService } = await import('../services/rconService');
-        await rconService.executeCommand(serverId, 'get5_endmatch');
+        await rconService.executeCommand(serverId, 'matchzy_end_match');
         log.info(`Successfully sent end match command to server ${serverId} for match ${slug}`);
       } catch (rconError) {
         // Don't fail the whole operation if RCON fails - this is the whole point

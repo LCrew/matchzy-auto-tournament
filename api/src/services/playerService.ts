@@ -96,29 +96,43 @@ class PlayerService {
   }
 
   /**
-   * Get all players
+   * Get all players with optional pagination
    */
-  async getAllPlayers(): Promise<PlayerResponse[]> {
-    const players = await db.getAllAsync<PlayerRecord>('players', undefined, undefined);
+  async getAllPlayers(
+    limit = 100,
+    offset = 0
+  ): Promise<{ players: PlayerResponse[]; total: number }> {
+    const [players, totalRows] = await Promise.all([
+      db.queryAsync<PlayerRecord>(
+        `SELECT * FROM players ORDER BY name ASC LIMIT ? OFFSET ?`,
+        [limit, offset]
+      ),
+      db.queryAsync<{ total: number | string }>(`SELECT COUNT(*) as total FROM players`, []),
+    ]);
 
-    // Pre-compute distinct match counts for all players to avoid one query per
-    // row when rendering the admin Players table.
-    const matchRows = await db.queryAsync<{ player_id: string; count: number | string }>(
-      'SELECT player_id, COUNT(DISTINCT match_slug) as count FROM player_match_stats GROUP BY player_id',
-      []
-    );
-    const matchCountMap = new Map<string, number>(
-      matchRows.map((row) => [row.player_id, Number(row.count ?? 0)])
-    );
+    const total = Number(totalRows[0]?.total ?? 0);
 
-    return players.map((p) => {
+    // Pre-compute distinct match counts for the fetched page to avoid one query per row.
+    const playerIds = players.map((p) => p.id);
+    const matchCountMap = new Map<string, number>();
+    if (playerIds.length > 0) {
+      const placeholders = playerIds.map(() => '?').join(', ');
+      const matchRows = await db.queryAsync<{ player_id: string; count: number | string }>(
+        `SELECT player_id, COUNT(DISTINCT match_slug) as count FROM player_match_stats WHERE player_id IN (${placeholders}) GROUP BY player_id`,
+        playerIds
+      );
+      for (const row of matchRows) {
+        matchCountMap.set(row.player_id, Number(row.count ?? 0));
+      }
+    }
+
+    const result = players.map((p) => {
       const base = this.toResponse(p);
       const visible = matchCountMap.get(p.id);
-      return {
-        ...base,
-        matchCount: visible ?? base.matchCount,
-      };
+      return { ...base, matchCount: visible ?? base.matchCount };
     });
+
+    return { players: result, total };
   }
 
   /**

@@ -798,8 +798,8 @@ export default function LobbyRoom() {
         </Card>
       )}
 
-      {/* Match Panel — shown when server is allocated */}
-      {lobby.server && !matchOver && (
+      {/* Match Panel — shown when server is allocated; persists after match ends */}
+      {lobby.server && (
         <Box sx={{ mb: 3 }}>
           <LobbyMatchPanel
             matchSlug={lobby.matchSlug}
@@ -832,29 +832,16 @@ export default function LobbyRoom() {
             )}
             {isCreator && (
               <Stack spacing={2} alignItems="center">
-                <Box display="flex" gap={1} alignItems="center">
-                  <FormControl size="small" sx={{ minWidth: 260 }}>
-                    <InputLabel>Server</InputLabel>
-                    <Select value={forceServerId} label="Server" onChange={(e) => setForceServerId(e.target.value)}>
-                      <MenuItem value=""><em>Auto-select</em></MenuItem>
-                      {servers.map((s) => (
-                        <MenuItem key={s.id} value={s.id}>
-                          {s.name} ({s.host}:{s.port})
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <Button
-                    variant="contained"
-                    color="success"
-                    size="large"
-                    onClick={() => act('create-match', forceServerId ? { serverId: forceServerId } : undefined)}
-                    disabled={executing}
-                    sx={{ px: 4, fontWeight: 700, whiteSpace: 'nowrap' }}
-                  >
-                    {executing ? 'Creating...' : 'Start Match'}
-                  </Button>
-                </Box>
+                <Button
+                  variant="contained"
+                  color="success"
+                  size="large"
+                  onClick={() => act('create-match')}
+                  disabled={executing}
+                  sx={{ px: 4, fontWeight: 700, whiteSpace: 'nowrap' }}
+                >
+                  {executing ? 'Creating...' : 'Start Match'}
+                </Button>
               </Stack>
             )}
           </CardContent>
