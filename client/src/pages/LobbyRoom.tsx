@@ -660,64 +660,85 @@ export default function LobbyRoom() {
       )}
 
       {/* Teams */}
-      <Box display="flex" gap={3} mb={3} flexDirection={{ xs: 'column', md: 'row' }}>
-        {/* CT side — cyan/neon-blue running glow */}
-        <Box
-          sx={{
-            flex: 1,
-            position: 'relative',
-            borderRadius: 2,
-            '&::before': {
-              content: '""',
+      <Box
+        display="flex"
+        gap={3}
+        mb={3}
+        flexDirection={{ xs: 'column', md: 'row' }}
+        sx={{
+          '@keyframes runGlowCT': {
+            from: { strokeDashoffset: 0 },
+            to: { strokeDashoffset: -10080 },
+          },
+          '@keyframes runGlowT': {
+            from: { strokeDashoffset: 0 },
+            to: { strokeDashoffset: -10080 },
+          },
+        }}
+      >
+        {/* CT side — cyan/neon-blue trail follows the border */}
+        <Box sx={{ flex: 1, position: 'relative' }}>
+          <svg
+            style={{
               position: 'absolute',
               inset: 0,
-              borderRadius: 'inherit',
-              padding: '2px',
-              background: 'conic-gradient(from 0deg, transparent 0deg, #00E5FF 50deg, #5BC8F5 70deg, transparent 110deg)',
-              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-              WebkitMaskComposite: 'xor',
-              maskComposite: 'exclude',
-              animation: 'runGlowCT 4s linear infinite',
-              filter: 'blur(3px)',
-            },
-            '@keyframes runGlowCT': {
-              from: { transform: 'rotate(0deg)' },
-              to: { transform: 'rotate(360deg)' },
-            },
-          }}
-        >
+              width: '100%',
+              height: '100%',
+              overflow: 'visible',
+              pointerEvents: 'none',
+            }}
+          >
+            <rect
+              x="1" y="1"
+              rx="8" ry="8"
+              fill="none"
+              stroke="#00E5FF"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeDasharray="80 10000"
+              style={{
+                width: 'calc(100% - 2px)',
+                height: 'calc(100% - 2px)',
+                animation: 'runGlowCT 4s linear infinite',
+                filter: 'drop-shadow(0 0 4px #00E5FF) drop-shadow(0 0 10px rgba(0,229,255,0.7))',
+              }}
+            />
+          </svg>
           <TeamColumn team="team1" players={team1Players} color="#5B9BD5" />
         </Box>
 
         <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
         <Divider sx={{ display: { xs: 'block', md: 'none' } }} />
 
-        {/* T side — neon-red running glow, offset by half cycle */}
-        <Box
-          sx={{
-            flex: 1,
-            position: 'relative',
-            borderRadius: 2,
-            '&::before': {
-              content: '""',
+        {/* T side — neon-red trail, offset so both trails are never on the same edge */}
+        <Box sx={{ flex: 1, position: 'relative' }}>
+          <svg
+            style={{
               position: 'absolute',
               inset: 0,
-              borderRadius: 'inherit',
-              padding: '2px',
-              background: 'conic-gradient(from 0deg, transparent 0deg, #FF1744 50deg, #FF6B57 70deg, transparent 110deg)',
-              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-              WebkitMaskComposite: 'xor',
-              maskComposite: 'exclude',
-              animation: 'runGlowT 4s linear infinite',
-              animationDelay: '-2s',
-              filter: 'blur(3px)',
-            },
-            '@keyframes runGlowT': {
-              from: { transform: 'rotate(0deg)' },
-              to: { transform: 'rotate(360deg)' },
-            },
-          }}
-        >
+              width: '100%',
+              height: '100%',
+              overflow: 'visible',
+              pointerEvents: 'none',
+            }}
+          >
+            <rect
+              x="1" y="1"
+              rx="8" ry="8"
+              fill="none"
+              stroke="#FF1744"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeDasharray="80 10000"
+              style={{
+                width: 'calc(100% - 2px)',
+                height: 'calc(100% - 2px)',
+                animation: 'runGlowT 4s linear infinite',
+                animationDelay: '-2s',
+                filter: 'drop-shadow(0 0 4px #FF1744) drop-shadow(0 0 10px rgba(255,23,68,0.7))',
+              }}
+            />
+          </svg>
           <TeamColumn team="team2" players={team2Players} color="#FF6B57" />
         </Box>
       </Box>
