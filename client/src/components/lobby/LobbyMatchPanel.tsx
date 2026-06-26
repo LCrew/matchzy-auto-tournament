@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Button, Card, CardContent, Chip, Typography } from '@mui/material';
+import { Box, Button, Card, CardContent, Chip, Tooltip, Typography } from '@mui/material';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import { useLiveStats } from '../../hooks/useLiveStats';
 import type { MatchMapResult } from '../../types';
+import { useNavigate } from 'react-router-dom';
+import { getMapDisplayName } from '../../constants/maps';
 
 interface LobbyPlayerInfo {
   steamId: string;
@@ -46,6 +49,7 @@ export function LobbyMatchPanel({
 }: LobbyMatchPanelProps) {
   const [copied, setCopied] = useState(false);
   const [connected, setConnected] = useState(false);
+  const navigate = useNavigate();
   const { stats, mapResults } = useLiveStats(matchSlug);
 
   const address = `${server.host}:${server.port}`;
@@ -279,6 +283,53 @@ export function LobbyMatchPanel({
               Map {mapNumber}{isSeries ? ` of ${totalMaps}` : ''}
             </Typography>
           </Box>
+
+          {/* Watch Replay — shown whenever a match slug exists */}
+          {matchSlug && (() => {
+            const mapsWithDemos = mapResults.filter((mr) => mr.demoFilePath);
+            const hasDemos = mapsWithDemos.length > 0;
+
+            if (hasDemos) {
+              return (
+                <Box display="flex" gap={1} flexWrap="wrap">
+                  {mapsWithDemos.map((mr) => {
+                    const label =
+                      mapsWithDemos.length === 1
+                        ? 'Watch Replay'
+                        : `Watch Replay — Map ${mr.mapNumber + 1}${mr.mapName ? `: ${getMapDisplayName(mr.mapName) ?? mr.mapName}` : ''}`;
+                    return (
+                      <Button
+                        key={mr.mapNumber}
+                        variant="outlined"
+                        size="small"
+                        startIcon={<PlayCircleOutlineIcon />}
+                        onClick={() => navigate(`/replay/${matchSlug}?map=${mr.mapNumber}`)}
+                        sx={{ flex: 1 }}
+                      >
+                        {label}
+                      </Button>
+                    );
+                  })}
+                </Box>
+              );
+            }
+
+            return (
+              <Tooltip title="Demo not yet available" placement="top">
+                <span>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    fullWidth
+                    startIcon={<PlayCircleOutlineIcon />}
+                    disabled
+                  >
+                    Watch Replay
+                  </Button>
+                </span>
+              </Tooltip>
+            );
+          })()}
         </Box>
       </CardContent>
     </Card>

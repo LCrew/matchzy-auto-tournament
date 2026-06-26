@@ -30,6 +30,7 @@ import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import Lobbies from './pages/Lobbies';
 import LobbyRoom from './pages/LobbyRoom';
 import Inventory from './pages/Inventory';
+import DemoReplayPage from './pages/DemoReplayPage';
 import { theme } from './theme';
 
 interface ProtectedRouteProps {
@@ -181,6 +182,16 @@ function AppRoutes() {
         element={
           <ProtectedRoute adminOnly={false}>
             <PlayerProfile />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Demo replay — accessible by any signed-in user (admins and lobby players) */}
+      <Route
+        path="/replay/:matchSlug"
+        element={
+          <ProtectedRoute adminOnly={false}>
+            <DemoReplayPage />
           </ProtectedRoute>
         }
       />

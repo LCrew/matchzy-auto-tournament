@@ -330,5 +330,11 @@
     },
     "testButton": "Test Sound",
     "footer": "Sound notifications will play when your match is ready or when important events occur."
+  },
+  "demo": {
+    "watchReplay": "Watch Replay",
+    "loading": "Loading demo viewer...",
+    "notAvailable": "Demo replay not available for this match",
+    "error": "Failed to load demo viewer"
   }
 }
