@@ -1,5 +1,5 @@
 import { Component } from "react";
-import { MSG_PLAY, MSG_PLAY_ROUND_PROGRESS, MSG_PROGRESS_MOVE } from "../constants";
+import { MSG_PLAY, MSG_PLAY_ROUND_PROGRESS, MSG_PROGRESS_MOVE, MSG_FOLLOW_PLAYER, MSG_PLAY_ROUND_UPDATE } from "../constants";
 import "./Timer.css";
 
 class Timer extends Component {
@@ -9,13 +9,35 @@ class Timer extends Component {
       time: "0:00",
       progress: 0,
       hovering: false,
+      followedPlayerName: null,
+      markers: [],
     };
     this.messageBus = props.messageBus;
+
     this.messageBus.listen([8], (msg) => {
       this.setState({ time: msg.roundtime.roundtime });
     });
     this.messageBus.listen([MSG_PLAY_ROUND_PROGRESS], (msg) => {
       this.setState({ progress: msg.progress });
+    });
+    this.messageBus.listen([MSG_FOLLOW_PLAYER], (msg) => {
+      this.setState({ followedPlayerName: msg.playerName || null, markers: [] });
+    });
+    this.messageBus.listen([MSG_PLAY_ROUND_UPDATE], () => {
+      this.setState({ markers: [] });
+    });
+    // Frag events (type 11): { killername, killerteam, victimname, victimteam, weapon, isheadshot }
+    this.messageBus.listen([11], (msg) => {
+      const name = this.state.followedPlayerName;
+      if (!name) return;
+      const { killername, victimname } = msg;
+      let type = null;
+      if (killername === name) type = "kill";
+      else if (victimname === name) type = "death";
+      if (!type) return;
+      this.setState((prev) => ({
+        markers: [...prev.markers, { progress: prev.progress, type }],
+      }));
     });
   }
 
@@ -68,6 +90,14 @@ class Timer extends Component {
         <div className="timer-track">
           <div className="timer-fill" style={{ width: `${pct}%` }} />
           <div className="timer-thumb" style={{ left: `${pct}%` }} />
+          {this.state.markers.map((m, i) => (
+            <div
+              key={i}
+              className={`timer-marker timer-marker--${m.type}`}
+              style={{ left: `${m.progress * 100}%` }}
+              title={m.type === "kill" ? "Kill" : "Death"}
+            />
+          ))}
         </div>
       </div>
     );

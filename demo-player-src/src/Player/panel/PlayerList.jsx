@@ -23,8 +23,10 @@ class PlayerList extends Component {
 
   handleFollow(playerId) {
     const next = this.state.followedPlayerId === playerId ? null : playerId;
+    const nextPlayer = next ? this.state.players.find((p) => p.playerid === next) : null;
+    const nextName = nextPlayer ? nextPlayer.name : null;
     this.setState({ followedPlayerId: next });
-    this.messageBus.emit({ msgtype: MSG_FOLLOW_PLAYER, playerId: next });
+    this.messageBus.emit({ msgtype: MSG_FOLLOW_PLAYER, playerId: next, playerName: nextName });
   }
 
   render() {

@@ -57,3 +57,24 @@
 .timer-container.hovering .timer-thumb {
   transform: translate(-50%, -50%) scale(1);
 }
+
+.timer-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 180%;
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.timer-marker--kill {
+  background: #4caf50;
+  box-shadow: 0 0 4px rgba(76, 175, 80, 0.6);
+}
+
+.timer-marker--death {
+  background: #f44336;
+  box-shadow: 0 0 4px rgba(244, 67, 54, 0.6);
+}

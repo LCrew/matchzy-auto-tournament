@@ -78,7 +78,7 @@ class Map2d extends Component {
       if (!msg.playerId) {
         this.setState({ followedPlayerId: null, followedPlayerName: null, zoom: 1, panX: 0, panY: 0 });
       } else {
-        this.setState({ followedPlayerId: msg.playerId });
+        this.setState({ followedPlayerId: msg.playerId, zoom: FOLLOW_ZOOM });
       }
     }.bind(this));
 
@@ -103,7 +103,6 @@ class Map2d extends Component {
         const H = el.offsetHeight;
         // Center the followed player: panX/Y computed so player maps to visual center
         // Formula derived from: visual_x = cx + z*(x - cx + panX) = cx → panX = (0.5 - x/100)*W
-        newState.zoom = FOLLOW_ZOOM;
         newState.panX = (0.5 - followed.x / 100) * W;
         newState.panY = (0.5 - followed.y / 100) * H;
         if (newState.followedPlayerName !== followed.name) {
@@ -117,9 +116,11 @@ class Map2d extends Component {
 
   handleFollow(playerId) {
     const next = this.state.followedPlayerId === playerId ? null : playerId;
-    const resetZoom = !next ? { zoom: 1, panX: 0, panY: 0, followedPlayerName: null } : {};
+    const nextPlayer = next ? this.state.players.find((p) => p.playerid === next) : null;
+    const nextName = nextPlayer ? nextPlayer.name : null;
+    const resetZoom = !next ? { zoom: 1, panX: 0, panY: 0, followedPlayerName: null } : { zoom: FOLLOW_ZOOM };
     this.setState({ followedPlayerId: next, ...resetZoom });
-    this.props.messageBus.emit({ msgtype: MSG_FOLLOW_PLAYER, playerId: next });
+    this.props.messageBus.emit({ msgtype: MSG_FOLLOW_PLAYER, playerId: next, playerName: nextName });
   }
 
   handleShot(msg) {
@@ -199,9 +200,8 @@ class Map2d extends Component {
 
   handleWheel = (e) => {
     e.preventDefault();
-    if (this.state.followedPlayerId) return;
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    this.setState({ zoom: Math.min(Math.max(this.state.zoom * zoomFactor, 1), 2.5) });
+    this.setState({ zoom: Math.min(Math.max(this.state.zoom * zoomFactor, 1), 4) });
   };
 
   resetZoom() {
@@ -218,7 +218,7 @@ class Map2d extends Component {
       backgroundImage: `url(${mapImage})`,
       transform: `scale(${zoom}) translate(${panX}px, ${panY}px)`,
       transformOrigin: "center",
-      transition: followedPlayerId ? "none" : "transform 0.2s ease",
+      transition: followedPlayerId ? "transform 50ms linear" : "transform 0.2s ease",
       cursor: followedPlayerId
         ? "default"
         : zoom > 1
