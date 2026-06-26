@@ -42,6 +42,7 @@ export function GlowBorder({
           mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
           maskComposite: 'exclude',
           pointerEvents: 'none',
+          zIndex: 2,
         }}
         animate={{
           backgroundPosition: ['0% 0%', '200% 0%'],
