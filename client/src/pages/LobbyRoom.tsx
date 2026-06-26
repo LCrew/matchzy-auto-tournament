@@ -589,7 +589,15 @@ export default function LobbyRoom() {
         <Box flex={1} minWidth={0}>
 
       {/* Header */}
-      <Card sx={{ mb: 3, ...(matchOver ? { opacity: 0.6 } : {}) }}>
+      <Card sx={{
+        mb: 3,
+        ...(matchOver ? { opacity: 0.6 } : {}),
+        ...(lobby.matchStatus === 'live' ? {
+          backdropFilter: 'blur(8px)',
+          background: 'rgba(255, 122, 26, 0.05)',
+          border: '1px solid rgba(255, 122, 26, 0.2)',
+        } : {}),
+      }}>
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Box>

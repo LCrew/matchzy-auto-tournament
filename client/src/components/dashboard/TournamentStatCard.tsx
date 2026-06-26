@@ -78,7 +78,7 @@ export default function TournamentStatCard({
   const trendValues = { up: '+25%', down: '-25%', neutral: '+5%' };
 
   return (
-    <Card variant="outlined" sx={{ height: '100%', flexGrow: 1 }}>
+    <Card variant="outlined" sx={{ height: '100%', flexGrow: 1, transition: 'transform 0.18s ease, box-shadow 0.18s ease', '&:hover': { transform: 'translateY(-3px)', boxShadow: 6 } }}>
       <CardContent>
         <Typography component="h2" variant="subtitle2" gutterBottom>
           {title}

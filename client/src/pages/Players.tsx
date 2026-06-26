@@ -297,7 +297,7 @@ export default function Players() {
           </Alert>
         ) : (
           <Grid container spacing={2} data-testid="players-list">
-            {filteredPlayers.map((player) => (
+            {filteredPlayers.map((player, index) => (
               <Grid size={{ xs: 12, sm: 6, md: 4, lg: 4 }} key={player.id}>
                 <Card
                   data-testid={`player-card-${player.id}`}
@@ -310,6 +310,12 @@ export default function Players() {
                     borderColor: selectedPlayerIds.has(player.id)
                       ? 'primary.main'
                       : 'transparent',
+                    animation: 'cardEnter 220ms ease-out both',
+                    animationDelay: `${Math.min(index, 6) * 40}ms`,
+                    '@keyframes cardEnter': {
+                      from: { opacity: 0, transform: 'translateY(12px)' },
+                      to: { opacity: 1, transform: 'translateY(0)' },
+                    },
                     '&:hover': {
                       transform: 'translateY(-4px)',
                       boxShadow: 6,

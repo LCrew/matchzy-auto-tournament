@@ -131,12 +131,27 @@ typography: {
         },
         contained: {
           boxShadow: 'none',
+          transition: 'box-shadow 0.2s ease, transform 0.2s ease',
           '&:hover': {
             boxShadow: 'none',
           },
           '&:focus-visible': {
             backgroundColor: '#C85A0F',
             boxShadow: 'none',
+          },
+        },
+        containedPrimary: {
+          transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 0 16px 2px rgba(255, 122, 26, 0.55)',
+            transform: 'translateY(-1px)',
+          },
+        },
+        containedError: {
+          transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 0 16px 2px rgba(255, 107, 87, 0.45)',
+            transform: 'translateY(-1px)',
           },
         },
         outlined: {

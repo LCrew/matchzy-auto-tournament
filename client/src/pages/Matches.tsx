@@ -669,12 +669,21 @@ export default function Matches() {
                 </Typography>
               </Box>
               <Grid container spacing={2}>
-                {liveMatches.map((match) => {
+                {liveMatches.map((match, index) => {
                   const event = liveEvents.get(match.slug);
                   const matchNumber = getGlobalMatchNumber(match, allMatches);
                   return (
                     <Grid size={{ xs: 12, sm: 6, md: 6, lg: 6 }} key={match.id}>
-                      <Box>
+                      <Box
+                        sx={{
+                          animation: 'cardEnter 220ms ease-out both',
+                          animationDelay: `${Math.min(index, 6) * 40}ms`,
+                          '@keyframes cardEnter': {
+                            from: { opacity: 0, transform: 'translateY(12px)' },
+                            to: { opacity: 1, transform: 'translateY(0)' },
+                          },
+                        }}
+                      >
                         <MatchCard
                           match={match}
                           matchNumber={matchNumber}
@@ -721,7 +730,7 @@ export default function Matches() {
                 )}
               </Box>
               <Grid container spacing={2}>
-                {upcomingMatches.map((match) => {
+                {upcomingMatches.map((match, index) => {
                   const matchNumber = getGlobalMatchNumber(match, allMatches);
                   const isManualMatch = isManualMatchFlag(match);
                   // Don't show "Manual match" text - the pill is more explanatory
@@ -729,20 +738,31 @@ export default function Matches() {
                   const tournamentStartedForCard = isManualMatch
                     ? undefined
                     : tournamentStatus === 'in_progress';
-                  
+
                   // Use queue position from backend (calculated globally across all matches)
                   const queuePosition = match.queuePosition;
-                  
+
                   // Get allocation ETA from local countdown state
                   const allocationETA = !match.serverId ? (matchETAs.get(match.id) ?? null) : null;
-                  
+
                   // Check if there are servers available right now
                   const hasAvailableServers = serverAllocationStatus
                     ? serverAllocationStatus.availableServerCount > 0
                     : false;
-                  
+
                   return (
-                    <Grid size={{ xs: 12, sm: 6, md: 6, lg: 6 }} key={match.id}>
+                    <Grid
+                      size={{ xs: 12, sm: 6, md: 6, lg: 6 }}
+                      key={match.id}
+                      sx={{
+                        animation: 'cardEnter 220ms ease-out both',
+                        animationDelay: `${Math.min(index, 6) * 40}ms`,
+                        '@keyframes cardEnter': {
+                          from: { opacity: 0, transform: 'translateY(12px)' },
+                          to: { opacity: 1, transform: 'translateY(0)' },
+                        },
+                      }}
+                    >
                       <MatchCard
                         match={match}
                         matchNumber={matchNumber}
@@ -777,10 +797,21 @@ export default function Matches() {
                 {t('matchesPage.sections.history', { count: matchHistory.length })}
               </Typography>
               <Grid container spacing={2}>
-                {matchHistory.map((match) => {
+                {matchHistory.map((match, index) => {
                   const matchNumber = getGlobalMatchNumber(match, allMatches);
                   return (
-                    <Grid size={{ xs: 12, sm: 6, md: 6, lg: 6 }} key={match.id}>
+                    <Grid
+                      size={{ xs: 12, sm: 6, md: 6, lg: 6 }}
+                      key={match.id}
+                      sx={{
+                        animation: 'cardEnter 220ms ease-out both',
+                        animationDelay: `${Math.min(index, 6) * 40}ms`,
+                        '@keyframes cardEnter': {
+                          from: { opacity: 0, transform: 'translateY(12px)' },
+                          to: { opacity: 1, transform: 'translateY(0)' },
+                        },
+                      }}
+                    >
                       <Box>
                         <MatchCard
                           match={match}

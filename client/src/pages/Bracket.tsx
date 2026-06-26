@@ -359,17 +359,17 @@ export default function Bracket() {
           <Typography variant="body2" color="text.secondary" mb={3}>
             Use the{' '}
             <Box
-              component="a"
-              href="/matches"
-              sx={{ fontWeight: 600, textDecoration: 'underline', color: 'inherit' }}
+              component="span"
+              onClick={() => navigate('/matches')}
+              sx={{ fontWeight: 600, textDecoration: 'underline', color: 'inherit', cursor: 'pointer' }}
             >
               Matches
             </Box>{' '}
             page to monitor live and upcoming matches, and the{' '}
             <Box
-              component="a"
-              href={`/tournament/${tournament.id}/leaderboard`}
-              sx={{ fontWeight: 600, textDecoration: 'underline', color: 'inherit' }}
+              component="span"
+              onClick={() => navigate(`/tournament/${tournament.id}/leaderboard`)}
+              sx={{ fontWeight: 600, textDecoration: 'underline', color: 'inherit', cursor: 'pointer' }}
             >
               Leaderboard
             </Box>{' '}

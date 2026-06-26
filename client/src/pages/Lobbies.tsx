@@ -89,7 +89,7 @@ export default function Lobbies() {
         body: JSON.stringify({}),
       });
       if (res.lobby?.id) {
-        window.location.href = `/lobby/${res.lobby.id}`;
+        navigate(`/lobby/${res.lobby.id}`);
         return;
       }
       navigatingRef.current = false;
@@ -155,11 +155,12 @@ export default function Lobbies() {
         </Card>
       ) : (
         <Stack spacing={2}>
-          {lobbies.map((lobby) => {
+          {lobbies.map((lobby, index) => {
             const playerCount = lobby.state.players.length;
             const maxPlayers = lobby.teamSize * 2;
             const isInLobby = lobby.state.players.some((p) => p.steamId === playerSteamId);
             const isFinished = lobby.matchStatus === 'completed' || lobby.matchStatus === 'cancelled';
+            const isLive = lobby.matchStatus === 'live';
             const statusLabel = lobby.matchStatus ? MATCH_STATUS_LABEL[lobby.matchStatus] : STATUS_LABELS[lobby.status];
             const statusDotColor = lobby.matchStatus === 'live' ? '#EE4B2B'
               : lobby.matchStatus === 'loaded' ? '#5B9BD5'
@@ -177,9 +178,21 @@ export default function Lobbies() {
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                   border: '2px solid',
-                  borderColor: isInLobby ? 'primary.main' : 'transparent',
+                  borderColor: isInLobby ? 'primary.main' : isLive ? 'rgba(255, 122, 26, 0.6)' : 'transparent',
                   opacity: isFinished ? 0.45 : 1,
                   bgcolor: isFinished ? 'action.disabledBackground' : 'background.paper',
+                  animation: isLive
+                    ? 'lobbyGlow 2s ease-in-out infinite'
+                    : `cardEnter 220ms ease-out both`,
+                  animationDelay: isLive ? undefined : `${Math.min(index, 6) * 40}ms`,
+                  '@keyframes cardEnter': {
+                    from: { opacity: 0, transform: 'translateY(12px)' },
+                    to: { opacity: 1, transform: 'translateY(0)' },
+                  },
+                  '@keyframes lobbyGlow': {
+                    '0%, 100%': { boxShadow: '0 0 4px rgba(255, 122, 26, 0.25)' },
+                    '50%': { boxShadow: '0 0 20px rgba(255, 122, 26, 0.65)' },
+                  },
                   '&:hover': {
                     borderColor: 'primary.main',
                     transform: 'translateY(-2px)',
