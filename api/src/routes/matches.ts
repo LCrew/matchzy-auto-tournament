@@ -19,6 +19,7 @@ import { playerService } from '../services/playerService';
 import { getMapResults } from '../services/matchMapResultService';
 import { serverAllocationTracker } from '../services/serverAllocationTracker';
 import { serverService } from '../services/serverService';
+import { settingsService } from '../services/settingsService';
 
 const router = Router();
 
@@ -383,9 +384,11 @@ router.get('/:slug.json', async (req: Request, res: Response) => {
 
     const { slug } = req.params;
 
-    // Base URL derived from the incoming request — always available, no DB lookup needed.
-    // MatchZy fetches this endpoint from the same host it uploads demos to.
-    const webhookBaseUrl = getBaseUrl(req);
+    // Prefer the webhook URL from Settings (the same URL configured in MAT → Settings → Webhook).
+    // Fall back to the request's own origin if no webhook URL is configured.
+    const settingsUrl = await settingsService.getWebhookUrl();
+    const webhookBaseUrl = settingsUrl || getBaseUrl(req);
+    log.info(`[MATCH CONFIG] Serving ${slug}.json — demo upload base URL: ${webhookBaseUrl} (source: ${settingsUrl ? 'settings' : 'request'})`);
 
     // 1) Load the match row
     const match = await db.queryOneAsync<DbMatchRow>('SELECT * FROM matches WHERE slug = ?', [
@@ -491,9 +494,10 @@ router.get('/:slug.json', async (req: Request, res: Response) => {
               },
       };
 
-      const configWithUpload = webhookBaseUrl
-        ? { ...safeConfig, cvars: { ...(safeConfig.cvars ?? {}), matchzy_demo_upload_url: `${webhookBaseUrl}/api/demos/${slug}/upload` } }
-        : safeConfig;
+      const demoUploadUrl = `${webhookBaseUrl}/api/demos/${slug}/upload`;
+      const serverToken = process.env.SERVER_TOKEN ?? '';
+      log.info(`[MATCH CONFIG] Injecting demo upload cvars (manual match ${slug}): url=${demoUploadUrl} token=${serverToken ? 'set' : 'MISSING'}`);
+      const configWithUpload = { ...safeConfig, cvars: { ...(safeConfig.cvars ?? {}), matchzy_demo_upload_url: demoUploadUrl, matchzy_demo_upload_header_key: 'X-MatchZy-Token', matchzy_demo_upload_header_value: serverToken } };
       return res.json(configWithUpload);
     }
 
@@ -547,9 +551,10 @@ router.get('/:slug.json', async (req: Request, res: Response) => {
       slug
     );
 
-    const freshWithUpload = webhookBaseUrl
-      ? { ...fresh, cvars: { ...(fresh.cvars ?? {}), matchzy_demo_upload_url: `${webhookBaseUrl}/api/demos/${slug}/upload` } }
-      : fresh;
+    const demoUploadUrl = `${webhookBaseUrl}/api/demos/${slug}/upload`;
+    const serverToken = process.env.SERVER_TOKEN ?? '';
+    log.info(`[MATCH CONFIG] Injecting demo upload cvars (bracket match ${slug}): url=${demoUploadUrl} token=${serverToken ? 'set' : 'MISSING'}`);
+    const freshWithUpload = { ...fresh, cvars: { ...(fresh.cvars ?? {}), matchzy_demo_upload_url: demoUploadUrl, matchzy_demo_upload_header_key: 'X-MatchZy-Token', matchzy_demo_upload_header_value: serverToken } };
     return res.json(freshWithUpload);
   } catch (error) {
     console.error('Error fetching match config:', error);

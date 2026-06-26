@@ -594,7 +594,7 @@ export default function LobbyRoom() {
               <Typography sx={SECTION}>Debug</Typography>
               <Divider />
               <Button variant="outlined" fullWidth color="warning" onClick={async () => {
-                try { const res = await api.fetch(`/api/matches/${lobby.matchSlug}`); setDebugJson(JSON.stringify(res.match?.config || res.match || res, null, 2)); } catch (err) { setDebugJson(String(err)); }
+                try { const res = await api.fetch(`/api/matches/${lobby.matchSlug}.json`); setDebugJson(JSON.stringify(res, null, 2)); } catch (err) { setDebugJson(String(err)); }
               }} sx={BTN}>View JSON</Button>
             </>
           )}

@@ -79,6 +79,27 @@ export async function loadMatchOnServer(
     // Helper to add small delay between RCON commands to avoid overwhelming the server
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+    // Never expose tokens in logs or API responses.
+    const redactSensitiveCommand = (command: string): string => {
+      // MatchZy demo upload token / header value
+      if (command.startsWith('matchzy_demo_upload_header_value ')) {
+        return 'matchzy_demo_upload_header_value "REDACTED"';
+      }
+      // MatchZy webhook token / header value (defense-in-depth; currently not set here)
+      if (command.startsWith('matchzy_remote_log_header_value ')) {
+        return 'matchzy_remote_log_header_value "REDACTED"';
+      }
+      // Match load auth header value (defense-in-depth; currently not set here)
+      if (command.startsWith('matchzy_loadmatch_url_header_value ')) {
+        return 'matchzy_loadmatch_url_header_value "REDACTED"';
+      }
+      // Match report token (defense-in-depth; currently not set here)
+      if (command.startsWith('matchzy_report_token ')) {
+        return 'matchzy_report_token "REDACTED"';
+      }
+      return command;
+    };
+
     // STEP 0: Ensure server is in competitive mode and on the correct map.
     // If the server was previously running deathmatch/gungame/etc., MatchZy
     // commands are ignored until game_type/game_mode are reset and the map
@@ -242,11 +263,63 @@ export async function loadMatchOnServer(
       log.success(`[MATCH LOADING] Match ${matchSlug} loaded successfully on ${serverId}`);
       matchLiveStatsService.reset(match.slug);
 
-      // Demo upload cvars (matchzy_demo_upload_url/header_key/header_value) are injected
-      // directly into the match config JSON served by GET /api/matches/:slug.json.
-      // MatchZy applies those cvars atomically when it processes matchzy_loadmatch_url,
-      // so no separate RCON commands are needed here.
-      demoUploadConfigured = true;
+      // STEP 3: Configure demo upload AFTER matchzy_loadmatch_url.
+      // matchzy_loadmatch_url resets matchzy_demo_upload_url to empty when it initialises
+      // the match, so these commands must be sent after the load completes.
+      const demoRecordingFlagRaw = cvars['matchzy_demo_recording_enabled'];
+      const demoRecordingEnabled =
+        demoRecordingFlagRaw === undefined ? true : String(demoRecordingFlagRaw).trim() !== '0';
+      const serverToken = process.env.SERVER_TOKEN || '';
+
+      if (demoRecordingEnabled) {
+        log.info('[DEMO_CONFIG] DEMO_RECORDING_ENABLED', { matchSlug, serverId });
+        if (!serverToken) {
+          log.warn('[MATCH LOADING] Demo upload not configured: SERVER_TOKEN missing', {
+            matchSlug,
+            serverId,
+          });
+        } else {
+          // Small grace period to ensure MatchZy has finished processing the match load.
+          await delay(300);
+          const demoCommands = [
+            'tv_enable 1',
+            `matchzy_demo_upload_url "${baseUrl}/api/demos/${matchSlug}/upload"`,
+            `matchzy_demo_upload_header_key "X-MatchZy-Token"`,
+            `matchzy_demo_upload_header_value "${serverToken}"`,
+          ];
+
+          const errors: string[] = [];
+          for (const cmd of demoCommands) {
+            const result = await rconService.sendCommand(serverId, cmd);
+            const safeCmd = redactSensitiveCommand(cmd);
+            results.push({ success: result.success, command: safeCmd, error: result.error });
+            if (result.success) {
+              log.info('[DEMO_CONFIG] COMMAND_OK', { matchSlug, serverId, command: safeCmd });
+            } else {
+              log.warn('[DEMO_CONFIG] COMMAND_FAIL', {
+                matchSlug,
+                serverId,
+                command: safeCmd,
+                error: result.error ?? 'no details',
+              });
+              errors.push(`${safeCmd}: ${result.error ?? 'no details'}`);
+            }
+            await delay(150);
+          }
+
+          demoUploadConfigured = errors.length === 0;
+          if (!demoUploadConfigured) {
+            log.warn('[MATCH LOADING] Demo configuration failed', { matchSlug, serverId, errors });
+          } else {
+            log.success('[DEMO_CONFIG] COMPLETE', { matchSlug, serverId });
+          }
+        }
+      } else {
+        log.info('[DEMO_CONFIG] DEMO_RECORDING_DISABLED', { matchSlug, serverId });
+        const disableCmd = 'matchzy_demo_upload_url ""';
+        const result = await rconService.sendCommand(serverId, disableCmd);
+        results.push({ success: result.success, command: disableCmd, error: result.error });
+      }
 
       // Update match status to 'loaded'
       await db.updateAsync(
