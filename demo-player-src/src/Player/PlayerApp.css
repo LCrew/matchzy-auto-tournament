@@ -1,0 +1,151 @@
+:root {
+  --TColor: #FF7A1A;
+  --CTColor: #4f9ede;
+  --BlackColor: #0c0f12;
+  --LightColor: #FFA361;
+  --DarkColor: #3d2400;
+}
+
+.T {
+  color: var(--TColor);
+}
+
+.CT {
+  color: var(--CTColor);
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0 auto;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  grid-template-rows: auto;
+  background-color: var(--BlackColor);
+  color: var(--LightColor) !important;
+  margin: 0;
+  padding: 0;
+
+  height: 100%;
+}
+
+.grid-container > div {
+  text-align: center;
+  padding: 0;
+  font-size: 16px;
+  height: calc(100vh);
+}
+
+.grid-container > .infoPanel {
+  border-left: 1px solid rgba(58, 61, 66, 0.5);
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.map {
+  overflow: hidden;
+}
+
+.dead {
+  background-image: url("./assets/icons/csgo/death.svg");
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+
+.defuse {
+  background-image: url("./assets/icons/csgo/defuse.svg");
+  filter: brightness(1.5) !important;
+}
+
+.vest {
+  background-image: url("./assets/icons/csgo/vest.svg");
+  background-size: 50%;
+}
+
+.vesthelm {
+  background-image: url("./assets/icons/csgo/vesthelm.svg");
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--TColor);
+  border-top: 4px solid var(--CTColor);
+  border-right: 4px solid var(--CTColor);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 10px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.loading-dialog {
+  background-color: #16181C;
+  color: var(--LightColor);
+  padding: 28px 36px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 15px;
+  border: 1px solid rgba(255, 122, 26, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,122,26,0.1);
+  font-family: 'Inter', sans-serif;
+}
+
+.loading-dialog p {
+  margin: 6px 0;
+  color: #A8ADB4;
+}
+
+.loading-dialog p:first-of-type {
+  color: var(--LightColor);
+  font-weight: 600;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background-color: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  margin-top: 14px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--TColor), var(--CTColor));
+  transition: width 0.3s ease;
+  border-radius: 3px;
+}
+
+.error-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+}

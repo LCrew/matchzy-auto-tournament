@@ -1,0 +1,184 @@
+.pli-container {
+  position: relative;
+  border: 1px solid rgba(58, 61, 66, 0.5);
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.pli-container:hover {
+  border-color: rgba(255, 122, 26, 0.25);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.pli-container.CT:hover {
+  border-color: rgba(79, 158, 222, 0.25);
+}
+
+.pli-container.followed {
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15), 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.pli-container.T.followed {
+  border-color: rgba(255, 122, 26, 0.7) !important;
+  box-shadow: 0 0 0 1px rgba(255, 122, 26, 0.2), 0 0 16px rgba(255, 122, 26, 0.15) !important;
+}
+
+.pli-container.CT.followed {
+  border-color: rgba(79, 158, 222, 0.7) !important;
+  box-shadow: 0 0 0 1px rgba(79, 158, 222, 0.2), 0 0 16px rgba(79, 158, 222, 0.15) !important;
+}
+
+/* HP bar */
+.pli-hp-bar {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #1a1a1a;
+}
+
+.pli-hp-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+  opacity: 0.18;
+}
+
+.pli-hp-fill.T { background-color: var(--TColor); }
+.pli-hp-fill.CT { background-color: var(--CTColor); float: right; }
+
+/* Name row */
+.pli-name-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  padding: 3px 6px;
+  min-height: 24px;
+}
+
+.pli-name {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  color: white;
+  opacity: 0.9;
+}
+
+.pli-vest {
+  width: 16px;
+  height: 16px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+.pli-hp-text {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  min-width: 24px;
+  text-align: right;
+}
+
+.pli-hp-text.dead {
+  background-image: url("../../assets/icons/csgo/death.svg");
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  color: transparent;
+  width: 16px;
+  height: 16px;
+}
+
+/* Weapons row */
+.pli-weapons-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.pli-weapon {
+  flex: 1;
+  height: 16px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: brightness(0.5);
+  transition: filter 0.2s ease;
+}
+
+.pli-weapon--primary {
+  flex: 2;
+}
+
+.pli-weapon.active {
+  filter: brightness(1) drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+}
+
+.pli-weapon.c4 { filter: brightness(0.7) !important; }
+.pli-weapon.c4.active { filter: brightness(1.5) drop-shadow(0 0 5px rgba(255, 165, 0, 0.6)) !important; }
+
+/* Stats row */
+.pli-stats-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  padding: 2px 6px 4px;
+  gap: 4px;
+}
+
+.pli-ammo,
+.pli-kad {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  opacity: 0.7;
+  flex: 1;
+  white-space: nowrap;
+}
+
+.pli-ammo--secondary {
+  flex: 0.8;
+}
+
+.pli-kad {
+  flex: 1;
+}
+
+.pli-money {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+  flex: 0 0 auto;
+}
+
+.pli-ammo.T, .pli-kad.T { color: var(--TColor); }
+.pli-ammo.CT, .pli-kad.CT { color: var(--CTColor); }
+.pli-money.T { color: var(--TColor); }
+.pli-money.CT { color: var(--CTColor); }
+
+/* background icons */
+.bckg {
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}

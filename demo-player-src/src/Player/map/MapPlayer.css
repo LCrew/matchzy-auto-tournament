@@ -1,0 +1,109 @@
+.player {
+  width: 1%;
+  height: 1%;
+  margin-left: -.5%;
+  margin-top: -.5%;
+  border-radius: 50%;
+  transition: left 60ms linear, top 60ms linear, opacity 60ms linear, background 60ms linear;
+  will-change: left, top;
+  position: absolute;
+  opacity: 1;
+  cursor: pointer;
+}
+
+.player.CT {
+  box-shadow: 0 0 0 .1vh var(--CTColor);
+}
+
+.player.T {
+  box-shadow: 0 0 0 .1vh var(--TColor);
+}
+
+.player.flashed {
+  box-shadow: 0 0 1vh .2vh white;
+}
+
+.player.dead {
+  opacity: .5;
+  cursor: default;
+}
+
+.player.followed.T {
+  box-shadow: 0 0 0 .2vh white, 0 0 1vh .4vh rgba(255, 122, 26, 0.6);
+  z-index: 10;
+}
+
+.player.followed.CT {
+  box-shadow: 0 0 0 .2vh white, 0 0 1vh .4vh rgba(79, 158, 222, 0.6);
+  z-index: 10;
+}
+
+.playerArrow {
+  width: 100%;
+  height: 100%;
+  clip-path: polygon(50% 0%, 25% 30%, 75% 30%);
+  margin: auto;
+  position: absolute;
+}
+
+.playerArrowContainer {
+  width: 100%;
+  height: 100%;
+}
+
+.playerShot {
+  transition: transform 100ms linear;
+  transform-origin: top;
+  width: 1px;
+  height: 5%;
+  background-color: gray;
+  position: absolute;
+}
+
+.player.T, .playerArrow.T {
+  background-color: var(--TColor);
+}
+
+.player.CT, .playerArrow.CT {
+  background-color: var(--CTColor);
+}
+
+.playerNameTag {
+  position: absolute;
+  transform: translate(-35%, -210%);
+  display: block;
+  border-radius: 2px;
+  background-color: rgba(12, 15, 18, 0.75);
+  white-space: nowrap;
+  padding: 0 3px;
+  opacity: .45;
+  z-index: -5;
+  font-size: 1vh;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  color: white;
+  transition: opacity 0.2s ease;
+}
+
+.playerNameTag.visible {
+  opacity: 1;
+  font-weight: 700;
+  background-color: rgba(12, 15, 18, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.player:hover .playerNameTag {
+  opacity: 0.85;
+}
+
+.playerMapWeapon {
+  width: 200%;
+  height: 100%;
+  display: block;
+  transform: translate(-30%, -420%);
+  opacity: .4;
+  z-index: -4;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}

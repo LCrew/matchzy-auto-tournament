@@ -1,0 +1,67 @@
+.scoreboard-container {
+  padding: 12px 0 8px;
+}
+
+.scoreboard-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.score-block {
+  flex: 1;
+  text-align: center;
+}
+
+.score-block--ct {
+  text-align: center;
+}
+
+.score-number {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.score-number.T {
+  background: linear-gradient(135deg, var(--TColor) 0%, #c85a0f 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.score-number.CT {
+  background: linear-gradient(135deg, var(--CTColor) 0%, #3a7fb8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.team-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-name.T { color: var(--TColor); }
+.team-name.CT { color: var(--CTColor); }
+
+.score-vs {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.2);
+  flex-shrink: 0;
+}

@@ -1,0 +1,59 @@
+.timer-container {
+  margin-bottom: 12px;
+  cursor: pointer;
+  user-select: none;
+  padding: 0 2px;
+}
+
+.timer-time {
+  text-align: center;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--LightColor);
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.timer-track {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  transition: height 0.15s ease;
+}
+
+.timer-container:hover .timer-track,
+.timer-container.hovering .timer-track {
+  height: 8px;
+}
+
+.timer-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--TColor) 0%, rgba(255, 122, 26, 0.7) 100%);
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+.timer-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 14px;
+  height: 14px;
+  background: var(--LightColor);
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(255, 122, 26, 0.6);
+  transition: transform 0.15s ease;
+  pointer-events: none;
+}
+
+.timer-container:hover .timer-thumb,
+.timer-container.hovering .timer-thumb {
+  transform: translate(-50%, -50%) scale(1);
+}

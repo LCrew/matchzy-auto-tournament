@@ -1,0 +1,16 @@
+.player-list-container {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.team-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

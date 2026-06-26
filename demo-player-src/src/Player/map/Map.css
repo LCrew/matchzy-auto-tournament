@@ -1,0 +1,139 @@
+.map {
+  background: linear-gradient(to right, #222, var(--BlackColor));
+}
+
+.map-wrapper {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+.map-container {
+  position: relative;
+  height: 100%;
+  aspect-ratio: 1/1;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  margin: 0 auto;
+  z-index: 0;
+  transition: transform 0.2s ease;
+}
+
+.map-button {
+  position: absolute;
+  bottom: 32px;
+  z-index: 1000;
+  font-size: 32px;
+  padding: 5px;
+  width: 64px;
+  height: 64px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border: 3px solid #333;
+  border-radius: 8px;
+  color: #aaa;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-button:hover {
+  background-color: rgba(50, 50, 50, 0.3);
+  color: #fff;
+}
+
+.zoom-reset {
+  right: 32px;
+}
+
+.zoom-reset:hover {
+  background-color: rgba(50, 50, 50, 0.3);
+  color: #fff;
+}
+
+.layer-toggle {
+  right: 100px;
+}
+
+.layer-toggle.lower-active {
+  background-color: rgba(20, 20, 20, 0.3);
+}
+
+.layer-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.layer-hint {
+  font-size: 13px;
+  color: #aaa;
+  margin-top: 2px;
+  line-height: 1;
+}
+
+.zoom-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.zoom-hint {
+  font-size: 13px;
+  color: #aaa;
+  margin-top: 2px;
+  line-height: 1;
+}
+
+.follow-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(12, 15, 18, 0.85);
+  border: 1px solid rgba(255, 122, 26, 0.4);
+  border-radius: 20px;
+  padding: 4px 10px 4px 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #FFA361;
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  pointer-events: all;
+}
+
+.follow-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--TColor);
+  box-shadow: 0 0 6px var(--TColor);
+  flex-shrink: 0;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.follow-badge-close {
+  background: none;
+  border: none;
+  color: #6B7178;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 0 0 4px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease;
+}
+
+.follow-badge-close:hover {
+  color: #ECEDEE;
+}
