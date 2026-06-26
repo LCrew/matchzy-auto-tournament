@@ -131,26 +131,25 @@ typography: {
         },
         contained: {
           boxShadow: 'none',
-          transition: 'box-shadow 0.2s ease, transform 0.2s ease',
-          '&:hover': {
-            boxShadow: 'none',
-          },
+          transition: 'box-shadow 0.25s ease, transform 0.2s ease, background-color 0.2s ease',
           '&:focus-visible': {
             backgroundColor: '#C85A0F',
             boxShadow: 'none',
           },
         },
         containedPrimary: {
-          transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+          transition: 'box-shadow 0.25s ease, transform 0.2s ease, background-color 0.2s ease',
           '&:hover': {
-            boxShadow: '0 0 16px 2px rgba(255, 122, 26, 0.55)',
+            backgroundColor: '#FF7A1A',
+            boxShadow: '0 0 18px 4px rgba(255, 122, 26, 0.85), 0 0 48px 12px rgba(255, 122, 26, 0.3)',
             transform: 'translateY(-1px)',
           },
         },
         containedError: {
-          transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+          transition: 'box-shadow 0.25s ease, transform 0.2s ease, background-color 0.2s ease',
           '&:hover': {
-            boxShadow: '0 0 16px 2px rgba(255, 107, 87, 0.45)',
+            backgroundColor: '#FF6B57',
+            boxShadow: '0 0 18px 4px rgba(255, 107, 87, 0.85), 0 0 48px 12px rgba(255, 107, 87, 0.3)',
             transform: 'translateY(-1px)',
           },
         },
