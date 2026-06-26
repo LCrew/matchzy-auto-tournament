@@ -59,6 +59,8 @@ services:
       - ENABLE_TEST_ENDPOINTS=${ENABLE_TEST_ENDPOINTS:-false}
       # Allow simulation settings in local "prod-like" builds
       - MATCHZY_ENABLE_SIMULATION_IN_PROD=true
+      # Persistent data directory (demos, uploads) — must match the volume mount
+      - DATA_DIR=/app/data
       # Docker service name for DB connection (not from .env)
       - DB_HOST=postgres
       # Computed DATABASE_URL (uses DB_* vars from .env or defaults)

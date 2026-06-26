@@ -12,8 +12,12 @@ import type { DbMatchRow } from '../types/database.types';
 
 const router = Router();
 
-// Directory for storing demos (same as database) - under api/data
-const DEMOS_DIR = path.join(__dirname, '..', '..', 'data', 'demos');
+// Directory for storing demos. In Docker, DATA_DIR=/app/data (persistent volume).
+// In dev (tsx), falls back to api/data relative to the source tree.
+const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.join(__dirname, '..', '..', 'data');
+const DEMOS_DIR = path.join(DATA_DIR, 'demos');
 
 // Ensure demos directory exists
 if (!fs.existsSync(DEMOS_DIR)) {
