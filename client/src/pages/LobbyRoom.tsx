@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Button,
@@ -146,6 +146,8 @@ export default function LobbyRoom() {
   const [executing, setExecuting] = useState(false);
   const [endingMatch, setEndingMatch] = useState(false);
   const [showForceAllocate, setShowForceAllocate] = useState(false);
+  const [allocationLog, setAllocationLog] = useState<Array<{ step: string; timestamp: number }>>([]);
+  const creatingMatchRef = useRef(false);
   const [confirmAction, setConfirmAction] = useState<{ type: string; title: string; message: string } | null>(null);
   const [playerMenu, setPlayerMenu] = useState<{ steamId: string; x: number; y: number } | null>(null);
   const [startMenuPos, setStartMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -190,6 +192,9 @@ export default function LobbyRoom() {
         showError('Lobby was cancelled');
         setTimeout(() => navigate('/lobby'), 2000);
       }
+    });
+    socket.on(`lobby:allocation:${id}`, (data: { step: string; timestamp: number }) => {
+      setAllocationLog((prev) => [...prev, data]);
     });
     return () => { socket.disconnect(); };
   }, [id, navigate, loadLobby, applyServerNow]);
@@ -239,26 +244,29 @@ export default function LobbyRoom() {
     return () => clearInterval(interval);
   }, [veto?.turnDeadline, veto?.completed, serverClockOffset]);
 
-  // Auto-create match when lobby reaches ready state (no user click needed)
+  // Auto-create match when lobby reaches ready state (no user click needed).
+  // Uses a ref guard instead of the shared `executing` flag to avoid a race where
+  // the socket delivers status='ready' while start-veto is still in flight.
   useEffect(() => {
     if (!lobby || lobby.status !== 'ready' || lobby.matchSlug || lobby.server) return;
     if (lobby.createdBy !== playerSteamId) return;
-    if (executing) return;
-    setExecuting(true);
+    if (creatingMatchRef.current) return;
+    creatingMatchRef.current = true;
+    setAllocationLog([]); // Reset log for this new allocation attempt
     api.fetch(`/api/lobbies/${id}/create-match`, { method: 'POST' })
       .then((res) => { if (res.lobby) setLobby(res.lobby); })
       .catch((err) => {
         const msg = err instanceof Error ? err.message : 'Failed to create match';
         try { const p = JSON.parse(msg); showError(p.error || p.message || msg); } catch { showError(msg); }
       })
-      .finally(() => setExecuting(false));
+      .finally(() => { creatingMatchRef.current = false; });
   }, [lobby?.status, lobby?.matchSlug, lobby?.server, playerSteamId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // After 15 s with no server assigned, reveal Force Allocate options
+  // After 5 s with no server assigned, reveal Force Allocate options
   useEffect(() => {
     if (lobby?.matchSlug && !lobby.server) {
       setShowForceAllocate(false);
-      const timer = setTimeout(() => setShowForceAllocate(true), 15_000);
+      const timer = setTimeout(() => setShowForceAllocate(true), 5_000);
       return () => clearTimeout(timer);
     }
     setShowForceAllocate(false);
@@ -944,9 +952,9 @@ export default function LobbyRoom() {
             )}
             {isCreator && (
               <Box display="flex" alignItems="center" justifyContent="center" gap={1} mt={1}>
-                {executing && <CircularProgress size={18} />}
+                <CircularProgress size={18} />
                 <Typography variant="body2" color="text.secondary">
-                  {executing ? 'Creating match...' : 'Starting match...'}
+                  Creating match...
                 </Typography>
               </Box>
             )}
@@ -965,6 +973,20 @@ export default function LobbyRoom() {
             <Typography variant="body2" color="text.secondary">
               Match created. Waiting for a server to become available.
             </Typography>
+            {allocationLog.length > 0 && (
+              <Box mt={2} textAlign="left" sx={{ bgcolor: 'background.default', p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="caption" fontWeight={700} color="text.disabled" sx={{ mb: 0.75, display: 'block', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  Allocation Log
+                </Typography>
+                <Stack spacing={0.25}>
+                  {allocationLog.map((entry, i) => (
+                    <Typography key={i} variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.72rem', display: 'block' }}>
+                      {new Date(entry.timestamp).toLocaleTimeString()} — {entry.step}
+                    </Typography>
+                  ))}
+                </Stack>
+              </Box>
+            )}
             {showForceAllocate && isCreator && servers.length > 0 && (
               <Box mt={2} textAlign="left">
                 <Typography variant="body2" color="warning.main" mb={1} fontWeight={600}>

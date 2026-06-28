@@ -6,6 +6,7 @@
 import { db } from '../config/database';
 import { log } from '../utils/logger';
 import { emitMatchUpdate, emitBracketUpdate } from './socketService';
+import { rconService } from './rconService';
 import { playerConnectionService } from './playerConnectionService';
 import {
   matchLiveStatsService,
@@ -39,12 +40,39 @@ export async function handleMatchEvent(event: MatchZyEvent): Promise<void> {
 
   switch (event.event) {
     // Match Lifecycle Events
-    case 'series_start':
+    case 'series_start': {
       log.success(`Series started: ${eventData.team1_name} vs ${eventData.team2_name}`, {
         matchId: event.matchid,
         format: `BO${eventData.num_maps}`,
       });
+      // Apply lobby-match plugin management after the map has loaded.
+      // This is the correct timing for loading GameModifiers (clownmode) because
+      // it runs after changelevel — earlier attempts (pre-changelevel) get wiped.
+      const seriesMatch = await resolveMatch(event.matchid);
+      if (seriesMatch?.server_id) {
+        try {
+          const lobby = await db.queryOneAsync<{ game_mode: string; id: string }>(
+            'SELECT game_mode, id FROM lobbies WHERE match_slug = ?', [seriesMatch.slug]
+          );
+          if (lobby) {
+            const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+            log.info(`[LOBBY] Applying plugin management for ${lobby.game_mode} on server ${seriesMatch.server_id}`);
+            await rconService.sendCommand(seriesMatch.server_id, 'css_plugins unload GameModeManager');
+            await delay(500);
+            if (lobby.game_mode === 'clownmode') {
+              log.info(`[CLOWNMODE] Loading GameModifiers on server ${seriesMatch.server_id}`);
+              await rconService.sendCommand(seriesMatch.server_id, 'css_plugins load GameModifiers');
+              log.success(`[CLOWNMODE] GameModifiers loaded on server ${seriesMatch.server_id}`);
+            } else {
+              await rconService.sendCommand(seriesMatch.server_id, 'css_plugins unload GameModifiers');
+            }
+          }
+        } catch (err) {
+          log.warn('[LOBBY] Plugin management failed during series_start (non-fatal)', err as Error);
+        }
+      }
       break;
+    }
 
     case 'map_picked':
       log.info(`Map picked: ${eventData.map_name} (Map ${eventData.map_number})`, {

@@ -105,7 +105,9 @@ export default function Lobbies() {
     try {
       const lobby = lobbies.find((l) => l.id === lobbyId);
       const isInLobby = lobby?.state.players.some((p) => p.steamId === playerSteamId);
-      if (!isInLobby) {
+      // Don't try to join finished/cancelled lobbies — just navigate to view stats/demos
+      const isFinished = lobby?.matchStatus === 'completed' || lobby?.matchStatus === 'cancelled' || lobby?.status === 'cancelled';
+      if (!isInLobby && !isFinished) {
         await api.fetch(`/api/lobbies/${lobbyId}/join`, { method: 'POST' });
       }
       navigate(`/lobby/${lobbyId}`);

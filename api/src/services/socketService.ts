@@ -149,3 +149,12 @@ export function emitLobbyDeleted(lobbyId: string): void {
     log.debug('Emitted lobby deleted', { lobbyId });
   }
 }
+
+/**
+ * Emit a server allocation step for a lobby (dev diagnostics)
+ */
+export function emitLobbyAllocationStep(lobbyId: string, step: string): void {
+  if (io) {
+    io.emit(`lobby:allocation:${lobbyId}`, { step, timestamp: Date.now() });
+  }
+}

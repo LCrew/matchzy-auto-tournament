@@ -1,6 +1,6 @@
 import { db } from '../config/database';
 import type { LobbyRow, LobbyState, LobbyResponse, LobbyStatus, LobbyFormat } from '../types/lobby.types';
-import { emitLobbyUpdate, emitLobbyCreated, emitLobbyDeleted } from './socketService';
+import { emitLobbyUpdate, emitLobbyCreated, emitLobbyDeleted, emitLobbyAllocationStep } from './socketService';
 import { matchService } from './matchService';
 import { matchAllocationService } from './matchAllocationService';
 import { loadMatchOnServer } from './matchLoadingService';
@@ -89,11 +89,16 @@ class LobbyService {
   }
 
   private async checkNotInOtherLobby(steamId: string, excludeLobbyId?: string): Promise<void> {
-    const rows = await db.queryAsync<LobbyRow>(
-      `SELECT id, lobby_state FROM lobbies WHERE status IN ('waiting', 'picking', 'veto', 'ready')`
+    const rows = await db.queryAsync<LobbyRow & { match_status: string | null }>(
+      `SELECT l.id, l.lobby_state, m.status AS match_status
+       FROM lobbies l
+       LEFT JOIN matches m ON m.slug = l.match_slug
+       WHERE l.status IN ('waiting', 'picking', 'veto', 'ready')`
     );
     for (const row of rows) {
       if (excludeLobbyId && row.id === excludeLobbyId) continue;
+      // Finished/cancelled matches don't block joining a new lobby
+      if (row.match_status === 'completed' || row.match_status === 'cancelled') continue;
       const state: LobbyState = JSON.parse(row.lobby_state);
       if (state.players.some((p) => p.steamId === steamId)) {
         throw new Error(`You are already in another lobby: ${state.lobbyName || row.id}`);
@@ -774,8 +779,10 @@ class LobbyService {
       },
     };
 
+    emitLobbyAllocationStep(lobbyId, `Creating MatchZy match config (${slug}, ${numMaps} map(s))...`);
     const input: CreateMatchInput = { slug, config };
     await matchService.createMatch(input, baseUrl);
+    emitLobbyAllocationStep(lobbyId, 'Match config stored. Updating lobby...');
 
     await db.updateAsync('lobbies', {
       match_slug: slug,
@@ -785,24 +792,33 @@ class LobbyService {
     if (forceServerId) {
       const server = await serverService.getServerById(forceServerId);
       if (!server) throw new Error(`Server '${forceServerId}' not found`);
+      emitLobbyAllocationStep(lobbyId, `Force-allocating to server "${server.name}" (${server.host}:${server.port})...`);
       serverAllocationTracker.markAllocated(forceServerId, slug);
       await db.updateAsync('matches', { server_id: forceServerId }, 'slug = ?', [slug]);
       const loadResult = await loadMatchOnServer(slug, forceServerId, { baseUrl });
       if (loadResult.success) {
+        emitLobbyAllocationStep(lobbyId, `Match loaded on server "${server.name}" successfully.`);
         emitMatchUpdate({ slug, serverId: forceServerId } as never);
         emitBracketUpdate({ action: 'server_assigned', matchSlug: slug, serverId: forceServerId });
       } else {
+        emitLobbyAllocationStep(lobbyId, `Force-allocation load failed: ${loadResult.error}`);
         await db.updateAsync('matches', { server_id: null }, 'slug = ?', [slug]);
         serverAllocationTracker.markIdle(forceServerId);
         log.warn(`Lobby ${lobbyId}: force-allocation to ${forceServerId} failed: ${loadResult.error}`);
       }
     } else {
+      emitLobbyAllocationStep(lobbyId, 'Searching for an idle server (checking RCON, grace period, CS2 version)...');
       try {
         const allocation = await matchAllocationService.allocateSingleMatch(slug, baseUrl);
-        if (!allocation.success) {
+        if (allocation.success) {
+          emitLobbyAllocationStep(lobbyId, `Server allocated (id: ${allocation.serverId}) — match config sent via RCON.`);
+        } else {
+          emitLobbyAllocationStep(lobbyId, `Auto-allocation failed: ${allocation.error}. Server will be assigned automatically when one becomes available (polling every 10s).`);
           log.warn(`Lobby ${lobbyId}: auto-allocation failed: ${allocation.error}`);
         }
       } catch (err) {
+        const errMsg = err instanceof Error ? err.message : 'Unknown error';
+        emitLobbyAllocationStep(lobbyId, `Auto-allocation error: ${errMsg}`);
         log.warn(`Lobby ${lobbyId}: auto-allocation threw`, err as Error);
       }
     }
@@ -957,14 +973,14 @@ class LobbyService {
     const serverId = match.server_id;
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+    // Best-effort early unload of GameModeManager before the map loads.
+    // The definitive plugin setup (including loading GameModifiers for clownmode)
+    // happens in matchEventHandler.ts when the series_start event fires — that
+    // runs after the map has fully loaded, which is the correct timing.
     try {
       await rconService.sendCommand(serverId, 'css_plugins unload GameModeManager');
       await delay(200);
-      if (gameMode === 'clownmode') {
-        log.info(`[POST-LOAD] Loading GameModifiers on server ${serverId}`);
-        await rconService.sendCommand(serverId, 'css_plugins load GameModifiers');
-      } else {
-        log.info(`[POST-LOAD] Unloading GameModifiers on server ${serverId}`);
+      if (gameMode !== 'clownmode') {
         await rconService.sendCommand(serverId, 'css_plugins unload GameModifiers');
       }
       await delay(200);
