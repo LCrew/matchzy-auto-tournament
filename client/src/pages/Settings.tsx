@@ -1297,32 +1297,48 @@ export default function Settings() {
                   </AccordionSummary>
                   <AccordionDetails sx={ACCORDION_DETAILS_SX}>
                     <Stack spacing={1}>
-                      {allGameModes.map((mode) => (
-                        <FormControlLabel
-                          key={mode.id}
-                          control={
-                            <Switch
-                              checked={enabledGameModes.includes(mode.id)}
-                              onChange={async (e) => {
-                                const next = e.target.checked
-                                  ? [...enabledGameModes, mode.id]
-                                  : enabledGameModes.filter((id) => id !== mode.id);
-                                setEnabledGameModes(next);
-                                try {
-                                  await api.put('/api/settings', {
-                                    enabledGameModes: next.length === allGameModes.length ? null : next,
-                                  });
-                                  setInitialEnabledGameModes(next);
-                                  showSuccess('Game modes updated');
-                                } catch { showError('Failed to update game modes'); }
-                              }}
-                              color="primary"
-                              size="small"
+                      {allGameModes.map((mode) => {
+                        const isCustom = !BUILTIN_MODE_IDS.has(mode.id);
+                        return (
+                          <Box key={mode.id} display="flex" alignItems="center">
+                            <FormControlLabel
+                              sx={{ flex: 1, mr: 0 }}
+                              control={
+                                <Switch
+                                  checked={enabledGameModes.includes(mode.id)}
+                                  onChange={async (e) => {
+                                    const next = e.target.checked
+                                      ? [...enabledGameModes, mode.id]
+                                      : enabledGameModes.filter((id) => id !== mode.id);
+                                    setEnabledGameModes(next);
+                                    try {
+                                      await api.put('/api/settings', {
+                                        enabledGameModes: next.length === allGameModes.length ? null : next,
+                                      });
+                                      setInitialEnabledGameModes(next);
+                                      showSuccess('Game modes updated');
+                                    } catch { showError('Failed to update game modes'); }
+                                  }}
+                                  color="primary"
+                                  size="small"
+                                />
+                              }
+                              label={mode.name}
                             />
-                          }
-                          label={mode.name}
-                        />
-                      ))}
+                            {isCustom && (
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleDeleteMode(mode.id)}
+                                title="Delete mode"
+                                sx={{ opacity: 0.6, '&:hover': { opacity: 1 } }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            )}
+                          </Box>
+                        );
+                      })}
                       {allGameModes.length === 0 && (
                         <Typography variant="body2" color="text.disabled">No game modes found</Typography>
                       )}
