@@ -832,8 +832,8 @@ class LobbyService {
     baseUrl: string,
     forceServerId?: string,
   ): Promise<void> {
-    // Plugin modes (retake, deathmatch, gungame) — create a minimal match record
-    // for server tracking but skip MatchZy config loading.
+    // Plugin modes (retake, deathmatch, gungame, practice) — create a minimal match
+    // record for server tracking but skip MatchZy config loading.
     const now = Math.floor(Date.now() / 1000);
 
     await db.insertAsync('matches', {
@@ -872,12 +872,11 @@ class LobbyService {
     serverAllocationTracker.markAllocated(serverId, slug);
     await db.updateAsync('matches', { server_id: serverId }, 'slug = ?', [slug]);
 
-    // Fetch game mode commands
+    // Fetch commands — custom game mode rows override built-in defaults
     const modeRow = await db.queryOneAsync<{ commands: string }>('SELECT commands FROM game_modes WHERE id = ?', [lobby.gameMode]);
-    const GAMEMODE_MANAGER_MODES = new Set(['retake', 'deathmatch', 'gungame']);
     const builtInCommands: Record<string, string[]> = {
       practice: ['css_prac'],
-      retake: ['css_gamemode retake'],
+      retake: ['exec retake.cfg'],
       deathmatch: ['css_gamemode deathmatch'],
       gungame: ['css_gamemode gungame'],
     };
@@ -888,26 +887,23 @@ class LobbyService {
     try {
       log.info(`[PLUGIN MODE] Loading ${lobby.gameMode} on server ${serverId}`);
 
-      await rconService.sendCommand(serverId, 'css_restart');
-      await delay(1000);
-      await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
-      await delay(500);
-
       if (lobby.gameMode === 'retake') {
-        await rconService.sendCommand(serverId, 'css_plugins load GameModeManager');
+        // Retake just needs the server-side cfg — no restart or plugin juggling
+        for (const cmd of commands) {
+          const result = await rconService.sendCommand(serverId, cmd);
+          log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
+          await delay(500);
+        }
+      } else if (lobby.gameMode === 'practice') {
+        await rconService.sendCommand(serverId, 'css_restart');
+        await delay(1000);
+        await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
         await delay(500);
-        await rconService.sendCommand(serverId, 'css_plugins load MenuManagerAPI');
-        await delay(500);
-      }
-
-      const firstMap = maps[0];
-
-      if (lobby.gameMode === 'practice') {
-        // Practice: load MatchZy → persistent config → changelevel → css_prac
         await rconService.sendCommand(serverId, 'css_plugins load MatchZy');
         await delay(500);
         const initResult = await serverInitializationService.initializeServer(serverId, baseUrl, { force: true });
         log.info(`[PLUGIN MODE] Persistent config: ${initResult.success ? 'sent' : initResult.error || 'failed'}`);
+        const firstMap = maps[0];
         if (firstMap) {
           await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
           await delay(10000);
@@ -917,14 +913,14 @@ class LobbyService {
           log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
           await delay(500);
         }
-      } else if (GAMEMODE_MANAGER_MODES.has(lobby.gameMode)) {
-        // GameModeManager modes: load plugin → css_gamemode (triggers its own
-        // changelevel internally) → then changelevel to lobby's map if needed
-        // (retake already loaded GameModeManager above, skip duplicate)
-        if (lobby.gameMode !== 'retake') {
-          await rconService.sendCommand(serverId, 'css_plugins load GameModeManager');
-          await delay(500);
-        }
+      } else {
+        // deathmatch, gungame, and any custom plugin modes
+        await rconService.sendCommand(serverId, 'css_restart');
+        await delay(1000);
+        await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
+        await delay(500);
+        await rconService.sendCommand(serverId, 'css_plugins load GameModeManager');
+        await delay(500);
         for (const cmd of commands) {
           const result = await rconService.sendCommand(serverId, cmd);
           log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
@@ -932,21 +928,10 @@ class LobbyService {
         }
         // Wait for GameModeManager's internal changelevel to complete
         await delay(8000);
-        // Change to lobby's selected map (GameModeManager may have loaded a different one)
+        const firstMap = maps[0];
         if (firstMap) {
           await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
           await delay(5000);
-        }
-      } else {
-        // Other plugin modes: changelevel → commands
-        if (firstMap) {
-          await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
-          await delay(5000);
-        }
-        for (const cmd of commands) {
-          const result = await rconService.sendCommand(serverId, cmd);
-          log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
-          await delay(500);
         }
       }
 
