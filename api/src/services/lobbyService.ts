@@ -913,8 +913,21 @@ class LobbyService {
           log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
           await delay(500);
         }
+      } else if (modeRow) {
+        // Custom DB mode: exec the configured command(s) then changelevel to selected map
+        for (const cmd of commands) {
+          const result = await rconService.sendCommand(serverId, cmd);
+          log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
+          await delay(500);
+        }
+        const firstMap = maps[0];
+        if (firstMap) {
+          await delay(1000);
+          await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
+          await delay(5000);
+        }
       } else {
-        // deathmatch, gungame, and any custom plugin modes
+        // Built-in deathmatch / gungame — use GameModeManager plugin
         await rconService.sendCommand(serverId, 'css_restart');
         await delay(1000);
         await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');

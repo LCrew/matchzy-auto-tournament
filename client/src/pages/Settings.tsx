@@ -9,6 +9,7 @@ import {
   Stack,
   TextField,
   Button,
+  IconButton,
   LinearProgress,
   Divider,
   CircularProgress,
@@ -27,6 +28,11 @@ import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import SyncIcon from '@mui/icons-material/Sync';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
 import { api } from '../utils/api';
 import type { SettingsResponse } from '../types/api.types';
 import { useIsDevelopment } from '../hooks/useIsDevelopment';
@@ -175,8 +181,13 @@ export default function Settings() {
   const [matchzyDemoRecordingEnabled, setMatchzyDemoRecordingEnabled] = useState<0 | 1 | null>(null);
   const [initialMatchzyDemoRecordingEnabled, setInitialMatchzyDemoRecordingEnabled] = useState<0 | 1 | null>(null);
   const [enabledGameModes, setEnabledGameModes] = useState<string[]>([]);
-  const [allGameModes, setAllGameModes] = useState<{ id: string; name: string }[]>([]);
+  const [allGameModes, setAllGameModes] = useState<{ id: string; name: string; commands?: string[] }[]>([]);
   const [initialEnabledGameModes, setInitialEnabledGameModes] = useState<string[]>([]);
+  const [customGameModes, setCustomGameModes] = useState<{ id: string; name: string; command: string }[]>([]);
+  const [showAddMode, setShowAddMode] = useState(false);
+  const [newModeName, setNewModeName] = useState('');
+  const [newModeCommand, setNewModeCommand] = useState('');
+  const [editingMode, setEditingMode] = useState<{ id: string; name: string; command: string } | null>(null);
   const [resetApiDialogOpen, setResetApiDialogOpen] = useState(false);
   const [resettingApi, setResettingApi] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -337,12 +348,14 @@ export default function Settings() {
 
       // Load game modes
       try {
-        const modesRes = await api.get<{ allGameModes: { id: string; name: string }[]; gameModes: { id: string; name: string }[] }>('/api/lobbies/game-modes');
+        const modesRes = await api.get<{ allGameModes: { id: string; name: string; commands?: string[] }[]; gameModes: { id: string; name: string }[] }>('/api/lobbies/game-modes');
         const all = modesRes.allGameModes || modesRes.gameModes || [];
         const enabled = modesRes.gameModes?.map((m: { id: string }) => m.id) || all.map((m: { id: string }) => m.id);
         setAllGameModes(all);
         setEnabledGameModes(enabled);
         setInitialEnabledGameModes(enabled);
+        const BUILTIN = new Set(['competitive', 'clownmode', 'wingman', 'practice', 'retake', 'deathmatch', 'gungame']);
+        setCustomGameModes(all.filter((m) => !BUILTIN.has(m.id)).map((m) => ({ id: m.id, name: m.name, command: (m.commands || [])[0] || '' })));
       } catch { /* ignore - non-critical */ }
     } catch (err) {
       const message = err instanceof Error ? err.message : t('settingsPage.errors.loadSettings');
@@ -365,6 +378,56 @@ export default function Settings() {
       setHeaderActions(null);
     };
   }, [setHeaderActions]);
+
+  const BUILTIN_MODE_IDS = new Set(['competitive', 'clownmode', 'wingman', 'practice', 'retake', 'deathmatch', 'gungame']);
+
+  const reloadGameModes = useCallback(async () => {
+    try {
+      const modesRes = await api.get<{ allGameModes: { id: string; name: string; commands?: string[] }[]; gameModes: { id: string; name: string }[] }>('/api/lobbies/game-modes');
+      const all = modesRes.allGameModes || modesRes.gameModes || [];
+      const enabled = modesRes.gameModes?.map((m: { id: string }) => m.id) || all.map((m: { id: string }) => m.id);
+      setAllGameModes(all);
+      setEnabledGameModes(enabled);
+      setInitialEnabledGameModes(enabled);
+      setCustomGameModes(all.filter((m) => !BUILTIN_MODE_IDS.has(m.id)).map((m) => ({ id: m.id, name: m.name, command: (m.commands || [])[0] || '' })));
+    } catch { /* ignore */ }
+  }, []);
+
+  const handleAddMode = async () => {
+    const name = newModeName.trim();
+    const command = newModeCommand.trim();
+    if (!name || !command) { showError('Name and RCON command are required'); return; }
+    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    try {
+      await api.post('/api/lobbies/game-modes', { id, name, commands: [command] });
+      setNewModeName('');
+      setNewModeCommand('');
+      setShowAddMode(false);
+      await reloadGameModes();
+      showSuccess('Custom mode added');
+    } catch { showError('Failed to add mode'); }
+  };
+
+  const handleSaveEditMode = async () => {
+    if (!editingMode) return;
+    const name = editingMode.name.trim();
+    const command = editingMode.command.trim();
+    if (!name) { showError('Name is required'); return; }
+    try {
+      await api.put(`/api/lobbies/game-modes/${editingMode.id}`, { name, commands: command ? [command] : [] });
+      setEditingMode(null);
+      await reloadGameModes();
+      showSuccess('Mode updated');
+    } catch { showError('Failed to update mode'); }
+  };
+
+  const handleDeleteMode = async (id: string) => {
+    try {
+      await api.delete(`/api/lobbies/game-modes/${id}`);
+      await reloadGameModes();
+      showSuccess('Mode deleted');
+    } catch { showError('Failed to delete mode'); }
+  };
 
   const handleSave = useCallback(
     async (showSuccessMessage = true, overrides?: { matchzyDebugChatEnabled?: boolean }) => {
@@ -1264,6 +1327,99 @@ export default function Settings() {
                         <Typography variant="body2" color="text.disabled">No game modes found</Typography>
                       )}
                     </Stack>
+
+                    <Divider sx={{ my: 2 }} />
+
+                    <Box>
+                      <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                        Custom Modes
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                        Custom modes run the RCON command then changelevel to the player-selected map.
+                      </Typography>
+
+                      <Stack spacing={1}>
+                        {customGameModes.map((mode) =>
+                          editingMode?.id === mode.id ? (
+                            <Box key={mode.id} display="flex" gap={1} alignItems="center">
+                              <TextField
+                                size="small"
+                                label="Mode Name"
+                                value={editingMode.name}
+                                onChange={(e) => setEditingMode({ ...editingMode, name: e.target.value })}
+                                sx={{ flex: 1 }}
+                              />
+                              <TextField
+                                size="small"
+                                label="RCON Command"
+                                value={editingMode.command}
+                                onChange={(e) => setEditingMode({ ...editingMode, command: e.target.value })}
+                                placeholder="exec mymode.cfg"
+                                sx={{ flex: 2 }}
+                              />
+                              <IconButton size="small" color="primary" onClick={handleSaveEditMode} title="Save">
+                                <CheckIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton size="small" onClick={() => setEditingMode(null)} title="Cancel">
+                                <CloseIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          ) : (
+                            <Box key={mode.id} display="flex" alignItems="center" gap={1} sx={{ py: 0.5 }}>
+                              <Typography sx={{ flex: 1, fontWeight: 500 }}>{mode.name}</Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ flex: 2, fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                                {mode.command || '—'}
+                              </Typography>
+                              <IconButton size="small" onClick={() => setEditingMode(mode)} title="Edit">
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton size="small" color="error" onClick={() => handleDeleteMode(mode.id)} title="Delete">
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )
+                        )}
+                        {customGameModes.length === 0 && !showAddMode && (
+                          <Typography variant="body2" color="text.disabled">No custom modes yet</Typography>
+                        )}
+                      </Stack>
+
+                      {showAddMode ? (
+                        <Box display="flex" gap={1} alignItems="center" mt={1.5}>
+                          <TextField
+                            size="small"
+                            label="Mode Name"
+                            value={newModeName}
+                            onChange={(e) => setNewModeName(e.target.value)}
+                            sx={{ flex: 1 }}
+                            autoFocus
+                          />
+                          <TextField
+                            size="small"
+                            label="RCON Command"
+                            value={newModeCommand}
+                            onChange={(e) => setNewModeCommand(e.target.value)}
+                            placeholder="exec mymode.cfg"
+                            sx={{ flex: 2 }}
+                          />
+                          <Button variant="contained" size="small" onClick={handleAddMode}>
+                            Add
+                          </Button>
+                          <Button size="small" onClick={() => { setShowAddMode(false); setNewModeName(''); setNewModeCommand(''); }}>
+                            Cancel
+                          </Button>
+                        </Box>
+                      ) : (
+                        <Button
+                          startIcon={<AddIcon />}
+                          size="small"
+                          sx={{ mt: 1 }}
+                          onClick={() => setShowAddMode(true)}
+                        >
+                          Add Custom Mode
+                        </Button>
+                      )}
+                    </Box>
                   </AccordionDetails>
                 </Accordion>
               </Stack>
