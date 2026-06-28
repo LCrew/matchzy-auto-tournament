@@ -865,6 +865,7 @@ class LobbyService {
     }
 
     if (!serverId) {
+      emitLobbyAllocationStep(lobbyId, 'No available server found for plugin mode.');
       log.warn(`Lobby ${lobbyId}: no available server for plugin mode`);
       return;
     }
@@ -884,46 +885,59 @@ class LobbyService {
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
     try {
+      emitLobbyAllocationStep(lobbyId, `Loading plugin mode "${lobby.gameMode}" on server ${serverId}...`);
       log.info(`[PLUGIN MODE] Loading ${lobby.gameMode} on server ${serverId}`);
 
       if (lobby.gameMode === 'retake') {
-        // Retake just needs the server-side cfg — no restart or plugin juggling
         for (const cmd of commands) {
+          emitLobbyAllocationStep(lobbyId, `RCON → ${cmd}`);
           const result = await rconService.sendCommand(serverId, cmd);
+          emitLobbyAllocationStep(lobbyId, `  ↳ ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || '(no response)'}`);
           log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
           await delay(500);
         }
       } else if (modeRow) {
-        // Custom DB mode: exec the configured command(s) then changelevel to selected map
-        for (const cmd of commands) {
-          const result = await rconService.sendCommand(serverId, cmd);
-          log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
-          await delay(500);
-        }
+        // changelevel first — CS2 resets ConVars on map load, so exec must run after
         const firstMap = maps[0];
         if (firstMap) {
-          await delay(6000);
-          await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
-          await delay(5000);
+          emitLobbyAllocationStep(lobbyId, `RCON → changelevel ${firstMap}`);
+          const clResult = await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
+          emitLobbyAllocationStep(lobbyId, `  ↳ ${clResult.success ? 'OK' : 'FAIL'}: ${clResult.response || clResult.error || '(no response)'}`);
+          emitLobbyAllocationStep(lobbyId, 'Waiting 15 s for map to finish loading...');
+          await delay(15000);
+        }
+        for (const cmd of commands) {
+          emitLobbyAllocationStep(lobbyId, `RCON → ${cmd}`);
+          const result = await rconService.sendCommand(serverId, cmd);
+          emitLobbyAllocationStep(lobbyId, `  ↳ ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || '(no response)'}`);
+          log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
+          await delay(500);
         }
       } else {
         // Built-in deathmatch / gungame — use GameModeManager plugin
+        emitLobbyAllocationStep(lobbyId, 'RCON → css_restart');
         await rconService.sendCommand(serverId, 'css_restart');
         await delay(1000);
+        emitLobbyAllocationStep(lobbyId, 'RCON → exec unload_plugins.cfg');
         await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
         await delay(500);
+        emitLobbyAllocationStep(lobbyId, 'RCON → css_plugins load GameModeManager');
         await rconService.sendCommand(serverId, 'css_plugins load GameModeManager');
         await delay(500);
         for (const cmd of commands) {
+          emitLobbyAllocationStep(lobbyId, `RCON → ${cmd}`);
           const result = await rconService.sendCommand(serverId, cmd);
+          emitLobbyAllocationStep(lobbyId, `  ↳ ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || '(no response)'}`);
           log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
           await delay(500);
         }
-        // Wait for GameModeManager's internal changelevel to complete
+        emitLobbyAllocationStep(lobbyId, 'Waiting 8 s for GameModeManager changelevel...');
         await delay(8000);
         const firstMap = maps[0];
         if (firstMap) {
-          await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
+          emitLobbyAllocationStep(lobbyId, `RCON → changelevel ${firstMap}`);
+          const clResult = await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
+          emitLobbyAllocationStep(lobbyId, `  ↳ ${clResult.success ? 'OK' : 'FAIL'}: ${clResult.response || clResult.error || '(no response)'}`);
           await delay(5000);
         }
       }
@@ -936,8 +950,11 @@ class LobbyService {
 
       emitMatchUpdate({ slug, serverId } as never);
       emitBracketUpdate({ action: 'server_assigned', matchSlug: slug, serverId });
+      emitLobbyAllocationStep(lobbyId, `Plugin mode "${lobby.gameMode}" loaded successfully.`);
       log.success(`[PLUGIN MODE] ${lobby.gameMode} loaded on server ${serverId}`);
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      emitLobbyAllocationStep(lobbyId, `Plugin mode load failed: ${errMsg}`);
       await db.updateAsync('matches', { server_id: null }, 'slug = ?', [slug]);
       serverAllocationTracker.markIdle(serverId);
       log.warn(`Lobby ${lobbyId}: plugin mode load failed`, err as Error);
