@@ -181,13 +181,12 @@ export default function Settings() {
   const [matchzyDemoRecordingEnabled, setMatchzyDemoRecordingEnabled] = useState<0 | 1 | null>(null);
   const [initialMatchzyDemoRecordingEnabled, setInitialMatchzyDemoRecordingEnabled] = useState<0 | 1 | null>(null);
   const [enabledGameModes, setEnabledGameModes] = useState<string[]>([]);
-  const [allGameModes, setAllGameModes] = useState<{ id: string; name: string; commands?: string[] }[]>([]);
+  const [allGameModes, setAllGameModes] = useState<{ id: string; name: string; commands?: string[]; builtIn?: boolean }[]>([]);
   const [initialEnabledGameModes, setInitialEnabledGameModes] = useState<string[]>([]);
-  const [customGameModes, setCustomGameModes] = useState<{ id: string; name: string; command: string }[]>([]);
   const [showAddMode, setShowAddMode] = useState(false);
   const [newModeName, setNewModeName] = useState('');
   const [newModeCommand, setNewModeCommand] = useState('');
-  const [editingMode, setEditingMode] = useState<{ id: string; name: string; command: string } | null>(null);
+  const [editingMode, setEditingMode] = useState<{ id: string; name: string; command: string; builtIn?: boolean } | null>(null);
   const [resetApiDialogOpen, setResetApiDialogOpen] = useState(false);
   const [resettingApi, setResettingApi] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -348,14 +347,12 @@ export default function Settings() {
 
       // Load game modes
       try {
-        const modesRes = await api.get<{ allGameModes: { id: string; name: string; commands?: string[] }[]; gameModes: { id: string; name: string }[] }>('/api/lobbies/game-modes');
+        const modesRes = await api.get<{ allGameModes: { id: string; name: string; commands?: string[]; builtIn?: boolean }[]; gameModes: { id: string; name: string }[] }>('/api/lobbies/game-modes');
         const all = modesRes.allGameModes || modesRes.gameModes || [];
         const enabled = modesRes.gameModes?.map((m: { id: string }) => m.id) || all.map((m: { id: string }) => m.id);
         setAllGameModes(all);
         setEnabledGameModes(enabled);
         setInitialEnabledGameModes(enabled);
-        const BUILTIN = new Set(['competitive', 'clownmode', 'wingman', 'practice', 'retake', 'deathmatch', 'gungame']);
-        setCustomGameModes(all.filter((m) => !BUILTIN.has(m.id)).map((m) => ({ id: m.id, name: m.name, command: (m.commands || [])[0] || '' })));
       } catch { /* ignore - non-critical */ }
     } catch (err) {
       const message = err instanceof Error ? err.message : t('settingsPage.errors.loadSettings');
@@ -379,17 +376,14 @@ export default function Settings() {
     };
   }, [setHeaderActions]);
 
-  const BUILTIN_MODE_IDS = new Set(['competitive', 'clownmode', 'wingman', 'practice', 'retake', 'deathmatch', 'gungame']);
-
   const reloadGameModes = useCallback(async () => {
     try {
-      const modesRes = await api.get<{ allGameModes: { id: string; name: string; commands?: string[] }[]; gameModes: { id: string; name: string }[] }>('/api/lobbies/game-modes');
+      const modesRes = await api.get<{ allGameModes: { id: string; name: string; commands?: string[]; builtIn?: boolean }[]; gameModes: { id: string; name: string }[] }>('/api/lobbies/game-modes');
       const all = modesRes.allGameModes || modesRes.gameModes || [];
       const enabled = modesRes.gameModes?.map((m: { id: string }) => m.id) || all.map((m: { id: string }) => m.id);
       setAllGameModes(all);
       setEnabledGameModes(enabled);
       setInitialEnabledGameModes(enabled);
-      setCustomGameModes(all.filter((m) => !BUILTIN_MODE_IDS.has(m.id)).map((m) => ({ id: m.id, name: m.name, command: (m.commands || [])[0] || '' })));
     } catch { /* ignore */ }
   }, []);
 
@@ -1291,54 +1285,52 @@ export default function Settings() {
                         Lobby Game Modes
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Choose which game modes are available in the lobby dropdown
+                        Toggle which modes appear in the lobby dropdown, rename or add custom modes below
                       </Typography>
                     </Box>
                   </AccordionSummary>
                   <AccordionDetails sx={ACCORDION_DETAILS_SX}>
+                    {/* Enable / disable toggles */}
                     <Stack spacing={1}>
-                      {allGameModes.map((mode) => {
-                        const isCustom = !BUILTIN_MODE_IDS.has(mode.id);
-                        return (
-                          <Box key={mode.id} display="flex" alignItems="center">
-                            <FormControlLabel
-                              sx={{ flex: 1, mr: 0 }}
-                              control={
-                                <Switch
-                                  checked={enabledGameModes.includes(mode.id)}
-                                  onChange={async (e) => {
-                                    const next = e.target.checked
-                                      ? [...enabledGameModes, mode.id]
-                                      : enabledGameModes.filter((id) => id !== mode.id);
-                                    setEnabledGameModes(next);
-                                    try {
-                                      await api.put('/api/settings', {
-                                        enabledGameModes: next.length === allGameModes.length ? null : next,
-                                      });
-                                      setInitialEnabledGameModes(next);
-                                      showSuccess('Game modes updated');
-                                    } catch { showError('Failed to update game modes'); }
-                                  }}
-                                  color="primary"
-                                  size="small"
-                                />
-                              }
-                              label={mode.name}
-                            />
-                            {isCustom && (
-                              <IconButton
+                      {allGameModes.map((mode) => (
+                        <Box key={mode.id} display="flex" alignItems="center">
+                          <FormControlLabel
+                            sx={{ flex: 1, mr: 0 }}
+                            control={
+                              <Switch
+                                checked={enabledGameModes.includes(mode.id)}
+                                onChange={async (e) => {
+                                  const next = e.target.checked
+                                    ? [...enabledGameModes, mode.id]
+                                    : enabledGameModes.filter((id) => id !== mode.id);
+                                  setEnabledGameModes(next);
+                                  try {
+                                    await api.put('/api/settings', {
+                                      enabledGameModes: next.length === allGameModes.length ? null : next,
+                                    });
+                                    setInitialEnabledGameModes(next);
+                                    showSuccess('Game modes updated');
+                                  } catch { showError('Failed to update game modes'); }
+                                }}
+                                color="primary"
                                 size="small"
-                                color="error"
-                                onClick={() => handleDeleteMode(mode.id)}
-                                title="Delete mode"
-                                sx={{ opacity: 0.6, '&:hover': { opacity: 1 } }}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            )}
-                          </Box>
-                        );
-                      })}
+                              />
+                            }
+                            label={mode.name}
+                          />
+                          {!mode.builtIn && (
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleDeleteMode(mode.id)}
+                              title="Delete mode"
+                              sx={{ opacity: 0.6, '&:hover': { opacity: 1 } }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                        </Box>
+                      ))}
                       {allGameModes.length === 0 && (
                         <Typography variant="body2" color="text.disabled">No game modes found</Typography>
                       )}
@@ -1346,17 +1338,20 @@ export default function Settings() {
 
                     <Divider sx={{ my: 2 }} />
 
+                    {/* Manage all modes (rename + RCON command) */}
                     <Box>
                       <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                        Custom Modes
+                        Manage Modes
                       </Typography>
                       <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                        Custom modes run the RCON command then changelevel to the player-selected map.
+                        Built-in modes can be renamed. Custom modes run their RCON command then changelevel to the selected map.
                       </Typography>
 
                       <Stack spacing={1}>
-                        {customGameModes.map((mode) =>
-                          editingMode?.id === mode.id ? (
+                        {allGameModes.map((mode) => {
+                          const showCommand = mode.id !== 'competitive' && mode.id !== 'clownmode';
+                          const command = (mode.commands || [])[0] || '';
+                          return editingMode?.id === mode.id ? (
                             <Box key={mode.id} display="flex" gap={1} alignItems="center">
                               <TextField
                                 size="small"
@@ -1364,15 +1359,18 @@ export default function Settings() {
                                 value={editingMode.name}
                                 onChange={(e) => setEditingMode({ ...editingMode, name: e.target.value })}
                                 sx={{ flex: 1 }}
+                                autoFocus
                               />
-                              <TextField
-                                size="small"
-                                label="RCON Command"
-                                value={editingMode.command}
-                                onChange={(e) => setEditingMode({ ...editingMode, command: e.target.value })}
-                                placeholder="exec mymode.cfg"
-                                sx={{ flex: 2 }}
-                              />
+                              {showCommand && (
+                                <TextField
+                                  size="small"
+                                  label="RCON Command"
+                                  value={editingMode.command}
+                                  onChange={(e) => setEditingMode({ ...editingMode, command: e.target.value })}
+                                  placeholder="exec mymode.cfg"
+                                  sx={{ flex: 2 }}
+                                />
+                              )}
                               <IconButton size="small" color="primary" onClick={handleSaveEditMode} title="Save">
                                 <CheckIcon fontSize="small" />
                               </IconButton>
@@ -1383,21 +1381,22 @@ export default function Settings() {
                           ) : (
                             <Box key={mode.id} display="flex" alignItems="center" gap={1} sx={{ py: 0.5 }}>
                               <Typography sx={{ flex: 1, fontWeight: 500 }}>{mode.name}</Typography>
-                              <Typography variant="body2" color="text.secondary" sx={{ flex: 2, fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                                {mode.command || '—'}
-                              </Typography>
-                              <IconButton size="small" onClick={() => setEditingMode(mode)} title="Edit">
+                              {showCommand && (
+                                <Typography variant="body2" color="text.secondary" sx={{ flex: 2, fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                                  {command || '—'}
+                                </Typography>
+                              )}
+                              <IconButton size="small" onClick={() => setEditingMode({ id: mode.id, name: mode.name, command, builtIn: mode.builtIn })} title="Edit">
                                 <EditIcon fontSize="small" />
                               </IconButton>
-                              <IconButton size="small" color="error" onClick={() => handleDeleteMode(mode.id)} title="Delete">
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
+                              {!mode.builtIn && (
+                                <IconButton size="small" color="error" onClick={() => handleDeleteMode(mode.id)} title="Delete">
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              )}
                             </Box>
-                          )
-                        )}
-                        {customGameModes.length === 0 && !showAddMode && (
-                          <Typography variant="body2" color="text.disabled">No custom modes yet</Typography>
-                        )}
+                          );
+                        })}
                       </Stack>
 
                       {showAddMode ? (

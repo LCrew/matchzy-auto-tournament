@@ -58,22 +58,19 @@ async function requirePlayer(req: Request, res: Response): Promise<{ steamId: st
 
 // ── Game Modes CRUD ──
 
+const BUILTIN_GAME_MODE_IDS = new Set(['competitive', 'clownmode', 'practice']);
+
 router.get('/game-modes', async (_req: Request, res: Response) => {
   try {
-    const builtIn = [
-      { id: 'competitive', name: 'Competitive', commands: [] },
-      { id: 'clownmode', name: 'Clownmode', commands: [] },
-      { id: 'wingman', name: 'Wingman', commands: [] },
-      { id: 'practice', name: 'Practice', commands: ['css_prac'] },
-      { id: 'retake', name: 'Retake', commands: ['css_gamemode retake'] },
-      { id: 'deathmatch', name: 'Deathmatch', commands: ['css_gamemode deathmatch'] },
-      { id: 'gungame', name: 'Gun Game', commands: ['css_gamemode gungame'] },
-    ];
     const rows = await db.queryAsync<{ id: string; name: string; commands: string }>(
       'SELECT id, name, commands FROM game_modes ORDER BY created_at'
     );
-    const custom = rows.map((r) => ({ id: r.id, name: r.name, commands: JSON.parse(r.commands) }));
-    const allModes = [...builtIn, ...custom];
+    const allModes = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      commands: JSON.parse(r.commands),
+      builtIn: BUILTIN_GAME_MODE_IDS.has(r.id),
+    }));
 
     // Filter by enabled_game_modes setting (if set). All modes enabled by default.
     const enabledRaw = await settingsService.getSetting('enabled_game_modes');
@@ -83,7 +80,6 @@ router.get('/game-modes', async (_req: Request, res: Response) => {
     }
 
     const gameModes = enabledIds ? allModes.filter((m) => enabledIds!.includes(m.id)) : allModes;
-    // Also return the full list for admin configuration
     return res.json({ success: true, gameModes, allGameModes: allModes });
   } catch (error) {
     log.error('Failed to list game modes', error);
@@ -128,6 +124,9 @@ router.put('/game-modes/:modeId', requireAuth, async (req: Request, res: Respons
 
 router.delete('/game-modes/:modeId', requireAuth, async (req: Request, res: Response) => {
   try {
+    if (BUILTIN_GAME_MODE_IDS.has(req.params.modeId)) {
+      return res.status(400).json({ success: false, error: 'Cannot delete built-in game mode' });
+    }
     await db.deleteAsync('game_modes', 'id = ?', [req.params.modeId]);
     return res.json({ success: true });
   } catch (error) {

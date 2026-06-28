@@ -14,7 +14,7 @@ import { emitMatchUpdate, emitBracketUpdate } from './socketService';
 import { log } from '../utils/logger';
 import type { CreateMatchInput, MatchConfig, MatchPlayer } from '../types/match.types';
 
-const MATCHZY_MODES = new Set(['competitive', 'clownmode', 'wingman']);
+const MATCHZY_MODES = new Set(['competitive', 'clownmode']);
 
 function generateId(): string {
   return `lobby-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -922,7 +922,7 @@ class LobbyService {
         }
         const firstMap = maps[0];
         if (firstMap) {
-          await delay(1000);
+          await delay(6000);
           await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
           await delay(5000);
         }

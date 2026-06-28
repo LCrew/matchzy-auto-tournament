@@ -297,6 +297,22 @@ class DatabaseManager {
         // Don't throw - continue
       }
 
+      // Seed built-in game modes (competitive, clownmode, practice)
+      try {
+        const now = Math.floor(Date.now() / 1000);
+        await client.query(`
+          INSERT INTO game_modes (id, name, commands, created_at, updated_at) VALUES
+            ('competitive', 'Competitive', '[]', ${now}, ${now}),
+            ('clownmode', 'Clownmode', '[]', ${now}, ${now}),
+            ('practice', 'Practice', '["css_prac"]', ${now}, ${now})
+          ON CONFLICT (id) DO NOTHING;
+        `);
+        log.database('[PostgreSQL] Built-in game modes seeded');
+      } catch (err) {
+        const error = err as Error;
+        log.warn(`[PostgreSQL] Failed to seed built-in game modes: ${error.message}`);
+      }
+
       log.success('[PostgreSQL] Database schema initialized');
     } finally {
       client.release();
