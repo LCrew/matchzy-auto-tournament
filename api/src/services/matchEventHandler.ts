@@ -66,6 +66,16 @@ export async function handleMatchEvent(event: MatchZyEvent): Promise<void> {
             } else {
               await rconService.sendCommand(seriesMatch.server_id, 'css_plugins unload GameModifiers');
             }
+            if (lobby.game_mode === 'practice') {
+              await delay(500);
+              const practiceRow = await db.queryOneAsync<{ commands: string }>('SELECT commands FROM game_modes WHERE id = ?', ['practice']);
+              const cmds: string[] = practiceRow ? JSON.parse(practiceRow.commands) : ['css_prac'];
+              for (const cmd of cmds) {
+                log.info(`[PRACTICE] RCON "${cmd}" on server ${seriesMatch.server_id}`);
+                await rconService.sendCommand(seriesMatch.server_id, cmd);
+                await delay(500);
+              }
+            }
           }
         } catch (err) {
           log.warn('[LOBBY] Plugin management failed during series_start (non-fatal)', err as Error);

@@ -14,7 +14,7 @@ import { emitMatchUpdate, emitBracketUpdate } from './socketService';
 import { log } from '../utils/logger';
 import type { CreateMatchInput, MatchConfig, MatchPlayer } from '../types/match.types';
 
-const MATCHZY_MODES = new Set(['competitive', 'clownmode']);
+const MATCHZY_MODES = new Set(['competitive', 'clownmode', 'practice']);
 
 function generateId(): string {
   return `lobby-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -875,7 +875,6 @@ class LobbyService {
     // Fetch commands — custom game mode rows override built-in defaults
     const modeRow = await db.queryOneAsync<{ commands: string }>('SELECT commands FROM game_modes WHERE id = ?', [lobby.gameMode]);
     const builtInCommands: Record<string, string[]> = {
-      practice: ['css_prac'],
       retake: ['exec retake.cfg'],
       deathmatch: ['css_gamemode deathmatch'],
       gungame: ['css_gamemode gungame'],
@@ -889,25 +888,6 @@ class LobbyService {
 
       if (lobby.gameMode === 'retake') {
         // Retake just needs the server-side cfg — no restart or plugin juggling
-        for (const cmd of commands) {
-          const result = await rconService.sendCommand(serverId, cmd);
-          log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
-          await delay(500);
-        }
-      } else if (lobby.gameMode === 'practice') {
-        await rconService.sendCommand(serverId, 'css_restart');
-        await delay(1000);
-        await rconService.sendCommand(serverId, 'exec unload_plugins.cfg');
-        await delay(500);
-        await rconService.sendCommand(serverId, 'css_plugins load MatchZy');
-        await delay(500);
-        const initResult = await serverInitializationService.initializeServer(serverId, baseUrl, { force: true });
-        log.info(`[PLUGIN MODE] Persistent config: ${initResult.success ? 'sent' : initResult.error || 'failed'}`);
-        const firstMap = maps[0];
-        if (firstMap) {
-          await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
-          await delay(10000);
-        }
         for (const cmd of commands) {
           const result = await rconService.sendCommand(serverId, cmd);
           log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
