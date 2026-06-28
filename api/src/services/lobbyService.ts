@@ -704,7 +704,22 @@ class LobbyService {
     if (lobby.status !== 'ready' && lobby.status !== 'waiting') {
       throw new Error('Lobby must be in ready or waiting state');
     }
-    if (lobby.matchSlug) throw new Error('Match already created for this lobby');
+    if (lobby.matchSlug) {
+      // Allow re-allocation if the match exists but has no server yet (plugin mode auto-alloc failure)
+      if (forceServerId && !MATCHZY_MODES.has(lobby.gameMode)) {
+        const existingMatch = await db.queryOneAsync<{ server_id: string | null }>(
+          'SELECT server_id FROM matches WHERE slug = ?', [lobby.matchSlug]
+        );
+        if (existingMatch && !existingMatch.server_id) {
+          const maps = state.veto?.completed ? state.veto.pickedMaps : lobby.mapPool;
+          await this.createPluginMatch(id, lobby, lobby.matchSlug, maps, baseUrl, forceServerId);
+          const updated = (await this.getById(id))!;
+          emitLobbyUpdate(updated);
+          return updated;
+        }
+      }
+      throw new Error('Match already created for this lobby');
+    }
 
     const state = lobby.state;
     const t1 = state.players.filter((p) => p.team === 'team1');
@@ -836,20 +851,24 @@ class LobbyService {
     // record for server tracking but skip MatchZy config loading.
     const now = Math.floor(Date.now() / 1000);
 
-    await db.insertAsync('matches', {
-      slug,
-      round: 0,
-      match_number: 0,
-      tournament_id: null,
-      status: 'pending',
-      config: JSON.stringify({ maplist: maps, matchid: Date.now() }),
-      created_at: now,
-    });
+    // Skip DB setup if match was already created (re-allocation after failed auto-alloc)
+    const matchAlreadyExists = !!(await db.queryOneAsync<{ slug: string }>('SELECT slug FROM matches WHERE slug = ?', [slug]));
+    if (!matchAlreadyExists) {
+      await db.insertAsync('matches', {
+        slug,
+        round: 0,
+        match_number: 0,
+        tournament_id: null,
+        status: 'pending',
+        config: JSON.stringify({ maplist: maps, matchid: Date.now() }),
+        created_at: now,
+      });
 
-    await db.updateAsync('lobbies', {
-      match_slug: slug,
-      updated_at: now,
-    }, 'id = ?', [lobbyId]);
+      await db.updateAsync('lobbies', {
+        match_slug: slug,
+        updated_at: now,
+      }, 'id = ?', [lobbyId]);
+    }
 
     // Find a server — force or auto
     let serverId: string | null = null;

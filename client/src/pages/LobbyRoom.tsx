@@ -1003,8 +1003,9 @@ export default function LobbyRoom() {
                         disabled={executing}
                         onClick={async () => {
                           setExecuting(true);
+                          setAllocationLog([]);
                           try {
-                            await api.fetch(`/api/matches/${lobby.matchSlug}/allocate`, {
+                            await api.fetch(`/api/lobbies/${id}/create-match`, {
                               method: 'POST',
                               body: JSON.stringify({ serverId: s.id }),
                             });
