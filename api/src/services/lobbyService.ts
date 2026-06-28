@@ -711,7 +711,7 @@ class LobbyService {
           'SELECT server_id FROM matches WHERE slug = ?', [lobby.matchSlug]
         );
         if (existingMatch && !existingMatch.server_id) {
-          const maps = state.veto?.completed ? state.veto.pickedMaps : lobby.mapPool;
+          const maps = lobby.state.veto?.completed ? lobby.state.veto.pickedMaps : lobby.mapPool;
           if (MATCHZY_MODES.has(lobby.gameMode)) {
             // MatchZy: push the match config to the forced server
             serverAllocationTracker.markAllocated(forceServerId, lobby.matchSlug);
