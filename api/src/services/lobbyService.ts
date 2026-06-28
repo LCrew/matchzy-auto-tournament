@@ -897,21 +897,22 @@ class LobbyService {
           await delay(500);
         }
       } else if (modeRow) {
-        // changelevel first — CS2 resets ConVars on map load, so exec must run after
-        const firstMap = maps[0];
-        if (firstMap) {
-          emitLobbyAllocationStep(lobbyId, `RCON → changelevel ${firstMap}`);
-          const clResult = await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
-          emitLobbyAllocationStep(lobbyId, `  ↳ ${clResult.success ? 'OK' : 'FAIL'}: ${clResult.response || clResult.error || '(no response)'}`);
-          emitLobbyAllocationStep(lobbyId, 'Waiting 15 s for map to finish loading...');
-          await delay(15000);
-        }
+        // exec cfg first (loads plugins), then changelevel — plugins persist across map change
         for (const cmd of commands) {
           emitLobbyAllocationStep(lobbyId, `RCON → ${cmd}`);
           const result = await rconService.sendCommand(serverId, cmd);
           emitLobbyAllocationStep(lobbyId, `  ↳ ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || '(no response)'}`);
           log.info(`[PLUGIN MODE] RCON "${cmd}" → ${result.success ? 'OK' : 'FAIL'}: ${result.response || result.error || ''}`);
           await delay(500);
+        }
+        const firstMap = maps[0];
+        if (firstMap) {
+          emitLobbyAllocationStep(lobbyId, 'Waiting 6 s for plugins to finish loading...');
+          await delay(6000);
+          emitLobbyAllocationStep(lobbyId, `RCON → changelevel ${firstMap}`);
+          const clResult = await rconService.sendCommand(serverId, `changelevel ${firstMap}`);
+          emitLobbyAllocationStep(lobbyId, `  ↳ ${clResult.success ? 'OK' : 'FAIL'}: ${clResult.response || clResult.error || '(no response)'}`);
+          await delay(5000);
         }
       } else {
         // Built-in deathmatch / gungame — use GameModeManager plugin
