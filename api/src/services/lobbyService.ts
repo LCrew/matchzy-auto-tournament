@@ -705,14 +705,28 @@ class LobbyService {
       throw new Error('Lobby must be in ready or waiting state');
     }
     if (lobby.matchSlug) {
-      // Allow re-allocation if the match exists but has no server yet (plugin mode auto-alloc failure)
-      if (forceServerId && !MATCHZY_MODES.has(lobby.gameMode)) {
+      // Allow re-allocation when the match has no server yet (auto-alloc failure + user force-picks a server)
+      if (forceServerId) {
         const existingMatch = await db.queryOneAsync<{ server_id: string | null }>(
           'SELECT server_id FROM matches WHERE slug = ?', [lobby.matchSlug]
         );
         if (existingMatch && !existingMatch.server_id) {
           const maps = state.veto?.completed ? state.veto.pickedMaps : lobby.mapPool;
-          await this.createPluginMatch(id, lobby, lobby.matchSlug, maps, baseUrl, forceServerId);
+          if (MATCHZY_MODES.has(lobby.gameMode)) {
+            // MatchZy: push the match config to the forced server
+            serverAllocationTracker.markAllocated(forceServerId, lobby.matchSlug);
+            await db.updateAsync('matches', { server_id: forceServerId }, 'slug = ?', [lobby.matchSlug]);
+            const loadResult = await loadMatchOnServer(lobby.matchSlug, forceServerId, { baseUrl });
+            if (!loadResult.success) {
+              await db.updateAsync('matches', { server_id: null }, 'slug = ?', [lobby.matchSlug]);
+              serverAllocationTracker.markIdle(forceServerId);
+              throw new Error(loadResult.error || 'Failed to load match on server');
+            }
+            emitLobbyAllocationStep(id, `MatchZy match loaded on forced server ${forceServerId}.`);
+          } else {
+            // Plugin mode: run RCON commands on the forced server
+            await this.createPluginMatch(id, lobby, lobby.matchSlug, maps, baseUrl, forceServerId);
+          }
           const updated = (await this.getById(id))!;
           emitLobbyUpdate(updated);
           return updated;
