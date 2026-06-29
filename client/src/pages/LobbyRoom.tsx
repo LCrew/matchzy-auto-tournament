@@ -46,6 +46,15 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CloseIcon from '@mui/icons-material/Close';
 import BlockIcon from '@mui/icons-material/Block';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
+import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import GpsFixedIcon from '@mui/icons-material/GpsFixed';
+import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
+import GroupWorkIcon from '@mui/icons-material/GroupWork';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 // Accordion removed — match controls inline in sidebar
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
@@ -57,17 +66,32 @@ import io from 'socket.io-client';
 import { animate, motion, useMotionTemplate, useMotionValue } from 'motion/react';
 import { GlowBorder } from '../components/shared/GlowBorder';
 
+const GAMEMODE_ICONS: Record<string, React.ElementType> = {
+  competitive: EmojiEventsIcon,
+  practice: FitnessCenterIcon,
+  clownmode: EmojiEmotionsIcon,
+  retake: RestartAltIcon,
+  prefire: GpsFixedIcon,
+  deathmatch: LocalFireDepartmentIcon,
+  wingman: GroupWorkIcon,
+  gungame: AutoFixHighIcon,
+};
+
+const PLUGIN_GAME_MODES = new Set(['retake', 'prefire', 'practice', 'deathmatch', 'gungame']);
+
 // Continuously rotating conic-gradient glow border.
 // colorRgb: '0,229,255' style (no # or rgba wrapper)
 // initialTurn: 0–1 offset so two instances are never in the same position
 const GlowBorderBox = ({
   children,
   colorRgb,
+  secondColorRgb,
   duration = 8,
   initialTurn = 0,
 }: {
   children: React.ReactNode;
   colorRgb: string;
+  secondColorRgb?: string;
   duration?: number;
   initialTurn?: number;
 }) => {
@@ -82,7 +106,8 @@ const GlowBorderBox = ({
     return () => anim.stop();
   }, [turn, duration, initialTurn]);
 
-  const gradient = useMotionTemplate`conic-gradient(from ${turn}turn, transparent 0%, transparent 52%, rgba(${colorRgb},0.04) 60%, rgba(${colorRgb},0.65) 69%, rgba(${colorRgb},1) 75%, rgba(${colorRgb},0.65) 81%, rgba(${colorRgb},0.12) 88%, transparent 96%)`;
+  const c2 = secondColorRgb ?? colorRgb;
+  const gradient = useMotionTemplate`conic-gradient(from ${turn}turn, transparent 0%, transparent 13%, rgba(${colorRgb},0.04) 13%, rgba(${colorRgb},0.65) 19%, rgba(${colorRgb},1) 25%, rgba(${colorRgb},0.65) 31%, rgba(${colorRgb},0.12) 37%, transparent 37%, transparent 63%, rgba(${c2},0.04) 63%, rgba(${c2},0.65) 69%, rgba(${c2},1) 75%, rgba(${c2},0.65) 81%, rgba(${c2},0.12) 87%, transparent 87%)`;
 
   return (
     <Box sx={{ flex: 1, position: 'relative', p: '2px', borderRadius: 1 }}>
@@ -294,6 +319,7 @@ export default function LobbyRoom() {
   const team2Players = lobby.state.players.filter((p) => p.team === 'team2');
   const unassigned = lobby.state.players.filter((p) => p.team === 'unassigned');
   const maxPlayers = lobby.teamSize * 2;
+  const isPluginMode = PLUGIN_GAME_MODES.has(lobby.gameMode);
 
   const quickActions = new Set(['join-team', 'set-captain', 'kick', 'shuffle-teams', 'auto-assign']);
 
@@ -542,25 +568,39 @@ export default function LobbyRoom() {
                   if (modePool) updates.mapPool = modePool.maps;
                   handleUpdateConfig(updates);
                 }}>
-                  {gameModes.map((mode) => (<MenuItem key={mode.id} value={mode.id}>{mode.name}</MenuItem>))}
+                  {gameModes.map((mode) => {
+                    const ModeIcon = GAMEMODE_ICONS[mode.id] ?? SportsEsportsIcon;
+                    return (
+                      <MenuItem key={mode.id} value={mode.id}>
+                        <ListItemIcon sx={{ minWidth: 32 }}>
+                          <ModeIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.9)', opacity: 0.55 }} />
+                        </ListItemIcon>
+                        <ListItemText>{mode.name}</ListItemText>
+                      </MenuItem>
+                    );
+                  })}
                 </Select>
               </FormControl>
-              <FormControl size="small" fullWidth disabled={!isCreator}>
-                <InputLabel>Format</InputLabel>
-                <Select value={lobby.format} label="Format" onChange={(e) => handleUpdateConfig({ format: e.target.value })}>
-                  <MenuItem value="bo1">BO1</MenuItem>
-                  <MenuItem value="bo3">BO3</MenuItem>
-                  <MenuItem value="bo5">BO5</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControl size="small" fullWidth disabled={!isCreator}>
-                <InputLabel>Per team</InputLabel>
-                <Select value={lobby.teamSize} label="Per team" onChange={(e) => handleUpdateConfig({ teamSize: Number(e.target.value) })}>
-                  {[1,2,3,4,5,6,7,8,9,10].map((n) => (<MenuItem key={n} value={n}>{n}v{n}</MenuItem>))}
-                </Select>
-              </FormControl>
+              {!isPluginMode && (
+                <FormControl size="small" fullWidth disabled={!isCreator}>
+                  <InputLabel>Format</InputLabel>
+                  <Select value={lobby.format} label="Format" onChange={(e) => handleUpdateConfig({ format: e.target.value })}>
+                    <MenuItem value="bo1">BO1</MenuItem>
+                    <MenuItem value="bo3">BO3</MenuItem>
+                    <MenuItem value="bo5">BO5</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
+              {!isPluginMode && (
+                <FormControl size="small" fullWidth disabled={!isCreator}>
+                  <InputLabel>Per team</InputLabel>
+                  <Select value={lobby.teamSize} label="Per team" onChange={(e) => handleUpdateConfig({ teamSize: Number(e.target.value) })}>
+                    {[1,2,3,4,5,6,7,8,9,10].map((n) => (<MenuItem key={n} value={n}>{n}v{n}</MenuItem>))}
+                  </Select>
+                </FormControl>
+              )}
 
-              {isCreator && (
+              {isCreator && !isPluginMode && (
                 <Button variant="outlined" fullWidth onClick={() => act('shuffle-teams')} disabled={executing} sx={BTN}>Shuffle Teams</Button>
               )}
               {isRealAdmin && isCreator && (
@@ -611,16 +651,21 @@ export default function LobbyRoom() {
           {isCreator && !matchOver && (
             <>
               <Box sx={{ mt: 1 }} />
+              {(() => {
+                const canStart = isPluginMode
+                  ? lobby.status === 'waiting' && lobby.state.players.length > 0
+                  : lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0;
+                return (
               <GlowBorder
                 glowColor="#5FBF8F"
                 speed={2.5}
                 borderRadius="8px"
-                disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
+                disabled={executing || !canStart}
               >
                 <ButtonGroup variant="contained" color="success" fullWidth sx={{ height: 44, borderRadius: 1, '& .MuiButton-root': { borderRadius: 1 } }}>
                   <Button
                     onClick={handleStartVeto}
-                    disabled={executing || !(lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0)}
+                    disabled={executing || !canStart}
                     startIcon={<PlayArrowIcon />}
                     sx={{ flex: 4, fontWeight: 700 }}
                   >
@@ -635,6 +680,8 @@ export default function LobbyRoom() {
                   </Button>
                 </ButtonGroup>
               </GlowBorder>
+                );
+              })()}
             </>
           )}
         </Stack>
@@ -688,7 +735,18 @@ export default function LobbyRoom() {
                     {lobby.state.lobbyName || `${lobby.teamSize}v${lobby.teamSize} ${lobby.format.toUpperCase()}`}
                   </Typography>
                 )}
-                <Chip label={lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)} size="small" variant="outlined" sx={{ height: 24, fontSize: '0.75rem', fontWeight: 600 }} />
+                {(() => {
+                  const GMIcon = GAMEMODE_ICONS[lobby.gameMode] ?? SportsEsportsIcon;
+                  return (
+                    <Chip
+                      icon={<GMIcon sx={{ fontSize: '14px !important', color: 'rgba(255,255,255,0.9)', opacity: 0.55 }} />}
+                      label={lobby.gameMode.charAt(0).toUpperCase() + lobby.gameMode.slice(1)}
+                      size="small"
+                      variant="outlined"
+                      sx={{ height: 24, fontSize: '0.75rem', fontWeight: 600 }}
+                    />
+                  );
+                })()}
               </Box>
               <Typography variant="body2" color="text.secondary">
                 {lobby.teamSize}v{lobby.teamSize} · {lobby.state.players.length}/{maxPlayers} players · {lobby.mapPool.length} maps
@@ -731,21 +789,43 @@ export default function LobbyRoom() {
         </Alert>
       )}
 
-      {/* Teams */}
-      <Box display="flex" gap={3} mb={3} flexDirection={{ xs: 'column', md: 'row' }}>
-        {/* CT side — cyan/neon-blue continuous rotating glow */}
-        <GlowBorderBox colorRgb="0,229,255" duration={8} initialTurn={0}>
-          <TeamColumn team="team1" players={team1Players} color="#5B9BD5" />
-        </GlowBorderBox>
+      {/* Teams / Players */}
+      {isPluginMode ? (
+        <Box mb={3}>
+          <GlowBorderBox colorRgb="0,229,255" secondColorRgb="255,23,68" duration={8} initialTurn={0}>
+            <Box>
+              <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                <Typography variant="h6" fontWeight={700} sx={{ fontFamily: '"Rajdhani", sans-serif' }}>Players</Typography>
+                <Chip label={`${lobby.state.players.length}/${maxPlayers}`} size="small" variant="outlined" sx={{ height: 24, fontSize: '0.75rem', fontWeight: 600 }} />
+              </Box>
+              <Stack spacing={1}>
+                {lobby.state.players.length > 0
+                  ? lobby.state.players.map((p) => renderPlayer(p))
+                  : <Typography variant="body2" color="text.disabled">No players yet</Typography>
+                }
+              </Stack>
+              {lobby.status === 'waiting' && !me && (
+                <Button variant="outlined" sx={{ mt: 1.5, height: 36 }} onClick={() => handleJoinTeam('unassigned')}>Join</Button>
+              )}
+            </Box>
+          </GlowBorderBox>
+        </Box>
+      ) : (
+        <Box display="flex" gap={3} mb={3} flexDirection={{ xs: 'column', md: 'row' }}>
+          {/* CT side — cyan/neon-blue continuous rotating glow */}
+          <GlowBorderBox colorRgb="0,229,255" duration={8} initialTurn={0}>
+            <TeamColumn team="team1" players={team1Players} color="#5B9BD5" />
+          </GlowBorderBox>
 
-        <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
-        <Divider sx={{ display: { xs: 'block', md: 'none' } }} />
+          <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+          <Divider sx={{ display: { xs: 'block', md: 'none' } }} />
 
-        {/* T side — neon-red, starts half a turn offset so they're always opposite */}
-        <GlowBorderBox colorRgb="255,23,68" duration={8} initialTurn={0.5}>
-          <TeamColumn team="team2" players={team2Players} color="#FF6B57" />
-        </GlowBorderBox>
-      </Box>
+          {/* T side — neon-red, starts half a turn offset so they're always opposite */}
+          <GlowBorderBox colorRgb="255,23,68" duration={8} initialTurn={0.5}>
+            <TeamColumn team="team2" players={team2Players} color="#FF6B57" />
+          </GlowBorderBox>
+        </Box>
+      )}
 
       {/* Unassigned players pool */}
       {/* Spectators */}
