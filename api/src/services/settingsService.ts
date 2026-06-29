@@ -335,9 +335,9 @@ class SettingsService {
         return;
       }
 
-      if (key === 'enabled_game_modes') {
+      if (key === 'enabled_game_modes' || key === 'game_modes_order') {
         await db.setAppSettingAsync(key, trimmed);
-        log.success(`Enabled game modes updated`);
+        log.success(`${key} updated`);
         return;
       }
 
