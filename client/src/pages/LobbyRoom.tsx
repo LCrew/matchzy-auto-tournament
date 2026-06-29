@@ -567,13 +567,28 @@ export default function LobbyRoom() {
               <Divider />
               <FormControl size="small" fullWidth disabled={!isCreator}>
                 <InputLabel sx={{ fontFamily: LOBBY_FONT }}>Mode</InputLabel>
-                <Select value={lobby.gameMode} label="Mode" sx={SELECT_SX} onChange={(e) => {
-                  const newMode = e.target.value as string;
-                  const modePool = mapPools.find((p) => p.gameModes?.includes(newMode)) || mapPools.find((p) => p.isDefault);
-                  const updates: Record<string, unknown> = { gameMode: newMode };
-                  if (modePool) updates.mapPool = modePool.maps;
-                  handleUpdateConfig(updates);
-                }}>
+                <Select
+                  value={lobby.gameMode}
+                  label="Mode"
+                  sx={SELECT_SX}
+                  renderValue={(value) => {
+                    const ModeIcon = GAMEMODE_ICONS[value as string] ?? SportsEsportsIcon;
+                    const label = gameModes.find((m) => m.id === value)?.name ?? String(value);
+                    return (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <ModeIcon sx={{ fontSize: 16, color: 'rgba(255,255,255,0.9)', opacity: 0.5, flexShrink: 0 }} />
+                        {label}
+                      </Box>
+                    );
+                  }}
+                  onChange={(e) => {
+                    const newMode = e.target.value as string;
+                    const modePool = mapPools.find((p) => p.gameModes?.includes(newMode)) || mapPools.find((p) => p.isDefault);
+                    const updates: Record<string, unknown> = { gameMode: newMode };
+                    if (modePool) updates.mapPool = modePool.maps;
+                    handleUpdateConfig(updates);
+                  }}
+                >
                   {gameModes.map((mode) => {
                     const ModeIcon = GAMEMODE_ICONS[mode.id] ?? SportsEsportsIcon;
                     return (
