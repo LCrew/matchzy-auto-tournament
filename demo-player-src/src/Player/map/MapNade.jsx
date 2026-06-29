@@ -2,25 +2,25 @@ import "./MapNade.css";
 import { Component } from "react";
 
 const NADE_CONFIGS = {
-  smoke:      { color: "#b0b0b0", fill: "rgba(180,180,180,0.12)", r: 4.5, duration: 18 },
-  molotov:    { color: "#FF6600", fill: "rgba(255,102,0,0.12)",   r: 3.5, duration: 7  },
-  incendiary: { color: "#FF6600", fill: "rgba(255,102,0,0.12)",   r: 3.5, duration: 7  },
-  fire:       { color: "#FF6600", fill: "rgba(255,102,0,0.12)",   r: 3.5, duration: 7  },
-  he:         { color: "#88DD44", fill: "rgba(136,221,68,0.18)",  r: 4.0, duration: 0.5 },
-  flash:      { color: "#DDDDFF", fill: "rgba(220,220,255,0.18)", r: 3.5, duration: 1.5 },
-  decoy:      { color: "#FFD700", fill: "rgba(255,215,0,0.14)",   r: 2.5, duration: 5  },
+  smoke:      { color: "#b0b0b0", fill: "rgba(180,180,180,0.40)", r: 4.5, duration: 18, icon: "☁" },
+  molotov:    { color: "#FF6600", fill: "rgba(255,102,0,0.42)",   r: 3.5, duration: 7,  icon: "🔥" },
+  incendiary: { color: "#FF6600", fill: "rgba(255,102,0,0.42)",   r: 3.5, duration: 7,  icon: "🔥" },
+  fire:       { color: "#FF6600", fill: "rgba(255,102,0,0.42)",   r: 3.5, duration: 7,  icon: "🔥" },
+  he:         { color: "#88DD44", fill: "rgba(136,221,68,0.70)",  r: 4.5, burst: true },
+  flash:      { color: "#DDDDFF", fill: "rgba(220,220,255,0.80)", r: 4.5, burst: true },
+  decoy:      { color: "#FFD700", fill: "rgba(255,215,0,0.22)",   r: 2.5, duration: 5  },
 };
 
-// SVG circle radius (in viewBox units 0-100), circumference ≈ 2π*46 ≈ 289
 const SVG_R = 46;
 const SVG_CIRC = Math.round(2 * Math.PI * SVG_R);
 
 class MapNade extends Component {
   componentDidMount() {
     if (this.props.hide) {
+      const cfg = NADE_CONFIGS[this.props.nade.kind] || {};
       setTimeout(() => {
         this.props.removeCallback(this.props.index);
-      }, 350);
+      }, cfg.burst ? 520 : 380);
     }
   }
 
@@ -28,10 +28,9 @@ class MapNade extends Component {
     const { nade, hide } = this.props;
     const { kind, x, y, action } = nade;
     const isActive = action === "explode" || hide;
-    const cfg = NADE_CONFIGS[kind] || { color: "#ffffff", fill: "rgba(255,255,255,0.1)", r: 2.0, duration: 3 };
+    const cfg = NADE_CONFIGS[kind] || { color: "#ffffff", fill: "rgba(255,255,255,0.15)", r: 2.0, duration: 3 };
 
     if (!isActive) {
-      // In-flight: small dot
       return (
         <div
           className="mapNade mapNade--dot"
@@ -53,27 +52,39 @@ class MapNade extends Component {
       height: `${size}%`,
       marginLeft: `-${cfg.r}%`,
       marginTop: `-${cfg.r}%`,
-      transition: hide ? "opacity 0.35s ease" : "left 60ms linear, top 60ms linear",
-      opacity: hide ? 0 : 1,
       pointerEvents: "none",
     };
 
+    if (cfg.burst) {
+      return (
+        <div
+          style={containerStyle}
+          className={`nade-burst nade-burst--${kind}`}
+        />
+      );
+    }
+
+    const isFading = hide;
     return (
-      <div style={containerStyle}>
+      <div
+        style={{
+          ...containerStyle,
+          transition: isFading ? "opacity 0.38s ease" : "left 60ms linear, top 60ms linear",
+          opacity: isFading ? 0 : 1,
+        }}
+      >
         <svg
           viewBox="0 0 100 100"
           className={`nade-svg nade-svg--${kind}`}
           style={{ width: "100%", height: "100%", overflow: "visible" }}
         >
-          {/* Max radius fill circle */}
           <circle
             cx="50" cy="50" r={SVG_R}
             fill={cfg.fill}
             stroke={cfg.color}
-            strokeWidth="0.8"
-            strokeOpacity="0.4"
+            strokeWidth="1.2"
+            strokeOpacity="0.7"
           />
-          {/* Radial countdown arc */}
           <circle
             cx="50" cy="50" r={SVG_R}
             fill="none"
@@ -87,9 +98,10 @@ class MapNade extends Component {
               animation: `nade-countdown ${cfg.duration}s linear forwards`,
             }}
           />
-          {/* Center dot */}
-          <circle cx="50" cy="50" r="2.5" fill={cfg.color} opacity="0.9" />
         </svg>
+        {cfg.icon && (
+          <div className="nade-icon">{cfg.icon}</div>
+        )}
       </div>
     );
   }

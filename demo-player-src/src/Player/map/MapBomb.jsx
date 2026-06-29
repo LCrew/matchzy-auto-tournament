@@ -1,5 +1,6 @@
-import "./MapBomb.css"
-import {Component} from "react";
+import "./MapBomb.css";
+import { Component } from "react";
+import c4Icon from "../assets/icons/csgo/c4.svg";
 
 const bombStateClasses = {
   0: "",
@@ -15,15 +16,14 @@ class MapBomb extends Component {
     const style = {
       left: `${this.props.bomb.x}%`,
       top: `${this.props.bomb.y}%`,
-    }
-    // console.log(this.props.bomb.state)
+    };
 
     return (
-        <div className={`mapBomb ${bombStateClasses[this.props.bomb.state]}`} style={style}>
-          &nbsp;
-        </div>
+      <div className={`mapBomb ${bombStateClasses[this.props.bomb.state]}`} style={style}>
+        <img src={c4Icon} className="mapBomb-icon" alt="C4" />
+      </div>
     );
   }
 }
 
-export default MapBomb
+export default MapBomb;

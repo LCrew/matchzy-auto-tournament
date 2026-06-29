@@ -107,3 +107,26 @@
   background-repeat: no-repeat;
   background-position: center;
 }
+
+.playerFlashIndicator {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -3.8vh);
+  background: rgba(255, 255, 255, 0.92);
+  color: #111;
+  font-size: 0.75vh;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 15;
+  animation: flashBadgePulse 0.4s ease-in-out infinite alternate;
+  letter-spacing: 0.02em;
+}
+
+@keyframes flashBadgePulse {
+  from { opacity: 0.75; }
+  to   { opacity: 1; }
+}
