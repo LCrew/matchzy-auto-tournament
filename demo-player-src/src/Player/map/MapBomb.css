@@ -10,18 +10,13 @@
   will-change: left, top;
 }
 
-/* Inline SVG icon wrapper */
+/* Inline SVG icon wrapper — outline is baked into the SVG via feMorphology */
 .mapBomb-icon-wrap {
-  width: 1.8vh;
-  height: 1.8vh;
+  width: 1.3vh;
+  height: 1.3vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  filter:
-    drop-shadow(1px 0 0 white)
-    drop-shadow(-1px 0 0 white)
-    drop-shadow(0 1px 0 white)
-    drop-shadow(0 -1px 0 white);
 }
 
 .mapBomb-icon-wrap svg {
@@ -50,7 +45,6 @@
 
 @keyframes bombExplode {
   0%   { opacity: 1; }
-  20%  { opacity: 0.9; }
   100% { opacity: 0.3; }
 }
 

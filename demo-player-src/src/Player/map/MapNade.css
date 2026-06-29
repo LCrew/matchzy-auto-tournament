@@ -1,4 +1,4 @@
-/* In-flight grenade: sized container with inline SVG icon */
+/* In-flight grenade: positioned container */
 .mapNade--inflight {
   position: absolute;
   width: 1.8%;
@@ -11,18 +11,13 @@
   pointer-events: none;
 }
 
-/* Inline SVG icon wrapper for in-flight nades */
+/* Icon wrapper — fills the inflight container; SVG outline baked via feMorphology */
 .mapNade-icon-wrap {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  filter:
-    drop-shadow(1px 0 0 white)
-    drop-shadow(-1px 0 0 white)
-    drop-shadow(0 1px 0 white)
-    drop-shadow(0 -1px 0 white);
 }
 
 .mapNade-icon-wrap svg {
@@ -31,23 +26,18 @@
   height: 100%;
 }
 
-/* Center icon inside the active nade area circle */
+/* Center icon inside the area-of-effect circle */
 .nade-icon-inner-wrap {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 28%;
-  height: 28%;
+  width: 26%;
+  height: 26%;
   transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  filter:
-    drop-shadow(1px 0 0 white)
-    drop-shadow(-1px 0 0 white)
-    drop-shadow(0 1px 0 white)
-    drop-shadow(0 -1px 0 white);
 }
 
 .nade-icon-inner-wrap svg {

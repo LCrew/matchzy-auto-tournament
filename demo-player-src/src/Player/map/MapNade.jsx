@@ -8,27 +8,34 @@ import heRaw from "../assets/icons/csgo/he.svg?raw";
 import flashRaw from "../assets/icons/csgo/flash.svg?raw";
 import decoyRaw from "../assets/icons/csgo/decoy.svg?raw";
 
-function toCurrentColor(svgRaw) {
+// Converts SVG to use currentColor fills and inlines a crisp white outline via feMorphology
+function toCurrentColor(svgRaw, filterId) {
   const wMatch = svgRaw.match(/<svg[^>]*\bwidth="([\d.]+)/);
   const hMatch = svgRaw.match(/<svg[^>]*\bheight="([\d.]+)/);
   const w = wMatch ? wMatch[1] : "100";
   const h = hMatch ? hMatch[1] : "100";
+
+  const filter = `<defs><filter id="${filterId}" x="-15%" y="-15%" width="130%" height="130%"><feMorphology in="SourceAlpha" operator="dilate" radius="1.5" result="e"/><feFlood flood-color="white" result="c"/><feComposite in="c" in2="e" operator="in" result="o"/><feMerge><feMergeNode in="o"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+
   return svgRaw
     .replace(/<\?xml[^?]*\?>\s*/g, "")
     .replace(/\bfill="(?!none)[^"]*"/g, 'fill="currentColor"')
     .replace(/\bstroke="(?!none)[^"]*"/g, 'stroke="currentColor"')
     .replace(/\bfill-opacity="[^"]*"\s*/g, "")
-    .replace(/<svg\b/, `<svg viewBox="0 0 ${w} ${h}"`);
+    .replace(/<svg([^>]*)>/, (_, attrs) =>
+      `<svg${attrs} viewBox="0 0 ${w} ${h}">${filter}<g filter="url(#${filterId})">`
+    )
+    .replace(/<\/svg>/, "</g></svg>");
 }
 
 const NADE_SVG = {
-  smoke:      toCurrentColor(smokeRaw),
-  molotov:    toCurrentColor(molotovRaw),
-  incendiary: toCurrentColor(incendiaryRaw),
-  fire:       toCurrentColor(molotovRaw),
-  he:         toCurrentColor(heRaw),
-  flash:      toCurrentColor(flashRaw),
-  decoy:      toCurrentColor(decoyRaw),
+  smoke:      toCurrentColor(smokeRaw,      "mat-smoke"),
+  molotov:    toCurrentColor(molotovRaw,    "mat-molotov"),
+  incendiary: toCurrentColor(incendiaryRaw, "mat-incendiary"),
+  fire:       toCurrentColor(molotovRaw,    "mat-fire"),
+  he:         toCurrentColor(heRaw,         "mat-he"),
+  flash:      toCurrentColor(flashRaw,      "mat-flash"),
+  decoy:      toCurrentColor(decoyRaw,      "mat-decoy"),
 };
 
 const NADE_CONFIGS = {
@@ -56,20 +63,18 @@ class MapNade extends Component {
 
   render() {
     const { nade, hide, team = "T" } = this.props;
-    const { kind, x, y } = nade;
-    const isActive = hide;
+    const { kind, x, y, action } = nade;
+    // isActive: nade is in its area-of-effect state (smoke cloud, fire, etc.)
+    const isActive = action === "explode" || hide;
     const cfg = NADE_CONFIGS[kind] || { r: 2.0, duration: 3, burst: false };
     const svgHtml = NADE_SVG[kind] || null;
     const teamVar = team === "CT" ? "var(--CTColor)" : "var(--TColor)";
     const teamFill = team === "CT" ? "rgba(79,158,222,0.28)" : "rgba(255,122,26,0.28)";
 
     if (!isActive) {
-      // In-flight: icon colored in team color with crisp white outline
+      // In-flight: small icon colored in team color
       return (
-        <div
-          className="mapNade mapNade--inflight"
-          style={{ left: `${x}%`, top: `${y}%` }}
-        >
+        <div className="mapNade mapNade--inflight" style={{ left: `${x}%`, top: `${y}%` }}>
           {svgHtml && (
             <div
               className="mapNade-icon-wrap"
@@ -82,7 +87,7 @@ class MapNade extends Component {
     }
 
     if (cfg.burst) {
-      // Flash / HE: expanding burst in team color
+      // Flash / HE: expanding radial burst
       const size = cfg.r * 2;
       return (
         <div
@@ -104,7 +109,7 @@ class MapNade extends Component {
       );
     }
 
-    // Active persistent nade (smoke, molotov, decoy): area circle + center icon
+    // Active persistent nade (smoke, molotov, decoy): countdown ring + center icon
     const size = cfg.r * 2;
 
     return (
@@ -124,15 +129,9 @@ class MapNade extends Component {
       >
         <svg
           viewBox="0 0 100 100"
-          style={{ width: "100%", height: "100%", overflow: "visible", position: "absolute", top: 0, left: 0 }}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }}
         >
-          <circle
-            cx="50" cy="50" r={SVG_R}
-            fill={teamFill}
-            stroke={teamVar}
-            strokeWidth="1.2"
-            strokeOpacity="0.7"
-          />
+          <circle cx="50" cy="50" r={SVG_R} fill={teamFill} stroke={teamVar} strokeWidth="1.2" strokeOpacity="0.7" />
           <circle
             cx="50" cy="50" r={SVG_R}
             fill="none"
