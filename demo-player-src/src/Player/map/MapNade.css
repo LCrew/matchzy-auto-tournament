@@ -1,39 +1,59 @@
-/* In-flight grenade: weapon icon with team color and white outline glow */
+/* In-flight grenade: sized container with inline SVG icon */
 .mapNade--inflight {
   position: absolute;
   width: 1.8%;
   height: 1.8%;
   margin-left: -0.9%;
   margin-top: -0.9%;
-  mask-size: contain;
-  mask-repeat: no-repeat;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  filter: drop-shadow(0 0 2px rgba(255,255,255,0.9)) drop-shadow(0 0 1px rgba(255,255,255,0.7));
   opacity: 0.92;
   transition: left 60ms linear, top 60ms linear;
   will-change: left, top;
   pointer-events: none;
 }
 
+/* Inline SVG icon wrapper for in-flight nades */
+.mapNade-icon-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter:
+    drop-shadow(1px 0 0 white)
+    drop-shadow(-1px 0 0 white)
+    drop-shadow(0 1px 0 white)
+    drop-shadow(0 -1px 0 white);
+}
+
+.mapNade-icon-wrap svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 /* Center icon inside the active nade area circle */
-.nade-icon-inner {
+.nade-icon-inner-wrap {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 32%;
-  height: 32%;
+  width: 28%;
+  height: 28%;
   transform: translate(-50%, -50%);
-  mask-size: contain;
-  mask-repeat: no-repeat;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  filter: drop-shadow(0 0 1.5px rgba(255,255,255,0.8)) drop-shadow(0 0 1px rgba(255,255,255,0.6));
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
+  filter:
+    drop-shadow(1px 0 0 white)
+    drop-shadow(-1px 0 0 white)
+    drop-shadow(0 1px 0 white)
+    drop-shadow(0 -1px 0 white);
+}
+
+.nade-icon-inner-wrap svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 /* Countdown animation for area-of-effect ring */

@@ -1,21 +1,34 @@
 import "./MapNade.css";
 import { Component } from "react";
 
-import smokeIcon from "../assets/icons/csgo/smoke.svg";
-import molotovIcon from "../assets/icons/csgo/molotov.svg";
-import incendiaryIcon from "../assets/icons/csgo/incendiary.svg";
-import heIcon from "../assets/icons/csgo/he.svg";
-import flashIcon from "../assets/icons/csgo/flash.svg";
-import decoyIcon from "../assets/icons/csgo/decoy.svg";
+import smokeRaw from "../assets/icons/csgo/smoke.svg?raw";
+import molotovRaw from "../assets/icons/csgo/molotov.svg?raw";
+import incendiaryRaw from "../assets/icons/csgo/incendiary.svg?raw";
+import heRaw from "../assets/icons/csgo/he.svg?raw";
+import flashRaw from "../assets/icons/csgo/flash.svg?raw";
+import decoyRaw from "../assets/icons/csgo/decoy.svg?raw";
 
-const NADE_ICONS = {
-  smoke:      smokeIcon,
-  molotov:    molotovIcon,
-  incendiary: incendiaryIcon,
-  fire:       molotovIcon,
-  he:         heIcon,
-  flash:      flashIcon,
-  decoy:      decoyIcon,
+function toCurrentColor(svgRaw) {
+  const wMatch = svgRaw.match(/<svg[^>]*\bwidth="([\d.]+)/);
+  const hMatch = svgRaw.match(/<svg[^>]*\bheight="([\d.]+)/);
+  const w = wMatch ? wMatch[1] : "100";
+  const h = hMatch ? hMatch[1] : "100";
+  return svgRaw
+    .replace(/<\?xml[^?]*\?>\s*/g, "")
+    .replace(/\bfill="(?!none)[^"]*"/g, 'fill="currentColor"')
+    .replace(/\bstroke="(?!none)[^"]*"/g, 'stroke="currentColor"')
+    .replace(/\bfill-opacity="[^"]*"\s*/g, "")
+    .replace(/<svg\b/, `<svg viewBox="0 0 ${w} ${h}"`);
+}
+
+const NADE_SVG = {
+  smoke:      toCurrentColor(smokeRaw),
+  molotov:    toCurrentColor(molotovRaw),
+  incendiary: toCurrentColor(incendiaryRaw),
+  fire:       toCurrentColor(molotovRaw),
+  he:         toCurrentColor(heRaw),
+  flash:      toCurrentColor(flashRaw),
+  decoy:      toCurrentColor(decoyRaw),
 };
 
 const NADE_CONFIGS = {
@@ -43,26 +56,28 @@ class MapNade extends Component {
 
   render() {
     const { nade, hide, team = "T" } = this.props;
-    const { kind, x, y, action } = nade;
-    const isActive = action === "explode" || hide;
+    const { kind, x, y } = nade;
+    const isActive = hide;
     const cfg = NADE_CONFIGS[kind] || { r: 2.0, duration: 3, burst: false };
-    const icon = NADE_ICONS[kind];
+    const svgHtml = NADE_SVG[kind] || null;
     const teamVar = team === "CT" ? "var(--CTColor)" : "var(--TColor)";
     const teamFill = team === "CT" ? "rgba(79,158,222,0.28)" : "rgba(255,122,26,0.28)";
 
     if (!isActive) {
-      // In-flight: icon with team color + white outline
+      // In-flight: icon colored in team color with crisp white outline
       return (
         <div
           className="mapNade mapNade--inflight"
-          style={{
-            left: `${x}%`,
-            top: `${y}%`,
-            backgroundColor: teamVar,
-            maskImage: icon ? `url(${icon})` : undefined,
-            WebkitMaskImage: icon ? `url(${icon})` : undefined,
-          }}
-        />
+          style={{ left: `${x}%`, top: `${y}%` }}
+        >
+          {svgHtml && (
+            <div
+              className="mapNade-icon-wrap"
+              style={{ color: teamVar }}
+              dangerouslySetInnerHTML={{ __html: svgHtml }}
+            />
+          )}
+        </div>
       );
     }
 
@@ -89,9 +104,8 @@ class MapNade extends Component {
       );
     }
 
-    // Active persistent nade (smoke, molotov, decoy): area circle + icon
+    // Active persistent nade (smoke, molotov, decoy): area circle + center icon
     const size = cfg.r * 2;
-    const isFading = hide;
 
     return (
       <div
@@ -103,14 +117,14 @@ class MapNade extends Component {
           height: `${size}%`,
           marginLeft: `-${cfg.r}%`,
           marginTop: `-${cfg.r}%`,
-          transition: isFading ? "opacity 0.38s ease" : "left 60ms linear, top 60ms linear",
-          opacity: isFading ? 0 : 1,
+          transition: hide ? "opacity 0.38s ease" : "left 60ms linear, top 60ms linear",
+          opacity: hide ? 0 : 1,
           pointerEvents: "none",
         }}
       >
         <svg
           viewBox="0 0 100 100"
-          style={{ width: "100%", height: "100%", overflow: "visible" }}
+          style={{ width: "100%", height: "100%", overflow: "visible", position: "absolute", top: 0, left: 0 }}
         >
           <circle
             cx="50" cy="50" r={SVG_R}
@@ -131,14 +145,11 @@ class MapNade extends Component {
             style={{ animation: `nade-countdown ${cfg.duration}s linear forwards` }}
           />
         </svg>
-        {icon && (
+        {svgHtml && (
           <div
-            className="nade-icon-inner"
-            style={{
-              backgroundColor: teamVar,
-              maskImage: `url(${icon})`,
-              WebkitMaskImage: `url(${icon})`,
-            }}
+            className="nade-icon-inner-wrap"
+            style={{ color: teamVar }}
+            dangerouslySetInnerHTML={{ __html: svgHtml }}
           />
         )}
       </div>
