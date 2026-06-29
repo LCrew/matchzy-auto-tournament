@@ -72,6 +72,20 @@ router.get('/game-modes', async (_req: Request, res: Response) => {
       builtIn: BUILTIN_GAME_MODE_IDS.has(r.id),
     }));
 
+    // Apply custom sort order if set
+    const orderRaw = await settingsService.getSetting('game_modes_order');
+    let orderedModes = allModes;
+    if (orderRaw) {
+      try {
+        const order: string[] = JSON.parse(orderRaw);
+        orderedModes = [...allModes].sort((a, b) => {
+          const ai = order.indexOf(a.id);
+          const bi = order.indexOf(b.id);
+          return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+        });
+      } catch { /* ignore */ }
+    }
+
     // Filter by enabled_game_modes setting (if set). All modes enabled by default.
     const enabledRaw = await settingsService.getSetting('enabled_game_modes');
     let enabledIds: string[] | null = null;
@@ -79,8 +93,8 @@ router.get('/game-modes', async (_req: Request, res: Response) => {
       try { enabledIds = JSON.parse(enabledRaw); } catch { /* ignore */ }
     }
 
-    const gameModes = enabledIds ? allModes.filter((m) => enabledIds!.includes(m.id)) : allModes;
-    return res.json({ success: true, gameModes, allGameModes: allModes });
+    const gameModes = enabledIds ? orderedModes.filter((m) => enabledIds!.includes(m.id)) : orderedModes;
+    return res.json({ success: true, gameModes, allGameModes: orderedModes });
   } catch (error) {
     log.error('Failed to list game modes', error);
     return res.status(500).json({ success: false, error: 'Failed to list game modes' });

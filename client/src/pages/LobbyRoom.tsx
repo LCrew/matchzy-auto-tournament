@@ -77,7 +77,7 @@ const GAMEMODE_ICONS: Record<string, React.ElementType> = {
   gungame: AutoFixHighIcon,
 };
 
-const PLUGIN_GAME_MODES = new Set(['retake', 'prefire', 'practice', 'deathmatch', 'gungame']);
+const PLUGIN_GAME_MODES = new Set(['retake', 'retakes', 'prefire', 'practice', 'deathmatch', 'gungame']);
 
 // Continuously rotating conic-gradient glow border.
 // colorRgb: '0,229,255' style (no # or rgba wrapper)
@@ -88,23 +88,25 @@ const GlowBorderBox = ({
   secondColorRgb,
   duration = 8,
   initialTurn = 0,
+  clockwise = true,
 }: {
   children: React.ReactNode;
   colorRgb: string;
   secondColorRgb?: string;
   duration?: number;
   initialTurn?: number;
+  clockwise?: boolean;
 }) => {
   const turn = useMotionValue(initialTurn);
 
   useEffect(() => {
-    const anim = animate(turn, initialTurn + 1, {
+    const anim = animate(turn, clockwise ? initialTurn + 1 : initialTurn - 1, {
       ease: 'linear',
       duration,
       repeat: Infinity,
     });
     return () => anim.stop();
-  }, [turn, duration, initialTurn]);
+  }, [turn, duration, initialTurn, clockwise]);
 
   const c2 = secondColorRgb ?? colorRgb;
   const gradient = useMotionTemplate`conic-gradient(from ${turn}turn, transparent 0%, transparent 13%, rgba(${colorRgb},0.04) 13%, rgba(${colorRgb},0.65) 19%, rgba(${colorRgb},1) 25%, rgba(${colorRgb},0.65) 31%, rgba(${colorRgb},0.12) 37%, transparent 37%, transparent 63%, rgba(${c2},0.04) 63%, rgba(${c2},0.65) 69%, rgba(${c2},1) 75%, rgba(${c2},0.65) 81%, rgba(${c2},0.12) 87%, transparent 87%)`;
@@ -571,11 +573,9 @@ export default function LobbyRoom() {
                   {gameModes.map((mode) => {
                     const ModeIcon = GAMEMODE_ICONS[mode.id] ?? SportsEsportsIcon;
                     return (
-                      <MenuItem key={mode.id} value={mode.id}>
-                        <ListItemIcon sx={{ minWidth: 32 }}>
-                          <ModeIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.9)', opacity: 0.55 }} />
-                        </ListItemIcon>
-                        <ListItemText>{mode.name}</ListItemText>
+                      <MenuItem key={mode.id} value={mode.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.75 }}>
+                        <ModeIcon sx={{ fontSize: 16, color: 'rgba(255,255,255,0.9)', opacity: 0.5, flexShrink: 0 }} />
+                        {mode.name}
                       </MenuItem>
                     );
                   })}
@@ -799,14 +799,29 @@ export default function LobbyRoom() {
                 <Chip label={`${lobby.state.players.length}/${maxPlayers}`} size="small" variant="outlined" sx={{ height: 24, fontSize: '0.75rem', fontWeight: 600 }} />
               </Box>
               <Stack spacing={1}>
-                {lobby.state.players.length > 0
-                  ? lobby.state.players.map((p) => renderPlayer(p))
-                  : <Typography variant="body2" color="text.disabled">No players yet</Typography>
-                }
+                {lobby.state.players.map((p) => renderPlayer(p))}
+                {lobby.status === 'waiting' && !matchOver && !me && (
+                  <Paper
+                    onClick={() => handleJoinTeam('unassigned')}
+                    sx={{
+                      p: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      height: 54, boxSizing: 'border-box',
+                      bgcolor: 'rgba(255,255,255,0.03)',
+                      border: '2px dashed',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      '&:hover': { borderColor: 'primary.main', bgcolor: 'rgba(255,255,255,0.06)', transform: 'scale(1.01)' },
+                    }}
+                  >
+                    <Typography variant="h5" color="text.disabled" fontWeight={300}>+</Typography>
+                  </Paper>
+                )}
+                {lobby.state.players.length === 0 && (me || matchOver) && (
+                  <Typography variant="body2" color="text.disabled">No players yet</Typography>
+                )}
               </Stack>
-              {lobby.status === 'waiting' && !me && (
-                <Button variant="outlined" sx={{ mt: 1.5, height: 36 }} onClick={() => handleJoinTeam('unassigned')}>Join</Button>
-              )}
             </Box>
           </GlowBorderBox>
         </Box>
@@ -820,8 +835,8 @@ export default function LobbyRoom() {
           <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
           <Divider sx={{ display: { xs: 'block', md: 'none' } }} />
 
-          {/* T side — neon-red, starts half a turn offset so they're always opposite */}
-          <GlowBorderBox colorRgb="255,23,68" duration={8} initialTurn={0.5}>
+          {/* T side — neon-red, counter-clockwise */}
+          <GlowBorderBox colorRgb="255,23,68" duration={8} initialTurn={0.5} clockwise={false}>
             <TeamColumn team="team2" players={team2Players} color="#FF6B57" />
           </GlowBorderBox>
         </Box>

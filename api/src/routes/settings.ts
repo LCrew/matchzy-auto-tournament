@@ -125,6 +125,7 @@ router.put('/', async (req: Request, res: Response) => {
     matchzyFfwTime,
     matchzyDemoRecordingEnabled,
     enabledGameModes,
+    gameModeOrder,
   } = req.body as {
     webhookUrl?: unknown;
     simulateMatches?: unknown;
@@ -164,6 +165,7 @@ router.put('/', async (req: Request, res: Response) => {
     matchzyFfwTime?: unknown;
     matchzyDemoRecordingEnabled?: unknown;
     enabledGameModes?: unknown;
+    gameModeOrder?: unknown;
   };
 
   try {
@@ -642,6 +644,11 @@ router.put('/', async (req: Request, res: Response) => {
     if (enabledGameModes !== undefined) {
       const value = enabledGameModes === null ? null : JSON.stringify(enabledGameModes);
       await settingsService.setSetting('enabled_game_modes', value);
+    }
+
+    if (gameModeOrder !== undefined) {
+      const value = gameModeOrder === null ? null : JSON.stringify(gameModeOrder);
+      await settingsService.setSetting('game_modes_order', value);
     }
 
     return res.json({

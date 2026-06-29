@@ -33,6 +33,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { api } from '../utils/api';
 import type { SettingsResponse } from '../types/api.types';
 import { useIsDevelopment } from '../hooks/useIsDevelopment';
@@ -421,6 +423,17 @@ export default function Settings() {
       await reloadGameModes();
       showSuccess('Mode deleted');
     } catch { showError('Failed to delete mode'); }
+  };
+
+  const handleMoveMode = async (index: number, direction: -1 | 1) => {
+    const next = [...allGameModes];
+    const swapIdx = index + direction;
+    if (swapIdx < 0 || swapIdx >= next.length) return;
+    [next[index], next[swapIdx]] = [next[swapIdx], next[index]];
+    setAllGameModes(next);
+    try {
+      await api.put('/api/settings', { gameModeOrder: next.map((m) => m.id) });
+    } catch { showError('Failed to save order'); }
   };
 
   const handleSave = useCallback(
@@ -1292,8 +1305,16 @@ export default function Settings() {
                   <AccordionDetails sx={ACCORDION_DETAILS_SX}>
                     {/* Enable / disable toggles */}
                     <Stack spacing={1}>
-                      {allGameModes.map((mode) => (
+                      {allGameModes.map((mode, idx) => (
                         <Box key={mode.id} display="flex" alignItems="center">
+                          <Box display="flex" flexDirection="column" mr={0.5}>
+                            <IconButton size="small" onClick={() => handleMoveMode(idx, -1)} disabled={idx === 0} sx={{ p: 0.25, opacity: 0.5, '&:not(:disabled):hover': { opacity: 1 } }}>
+                              <ArrowUpwardIcon sx={{ fontSize: 14 }} />
+                            </IconButton>
+                            <IconButton size="small" onClick={() => handleMoveMode(idx, 1)} disabled={idx === allGameModes.length - 1} sx={{ p: 0.25, opacity: 0.5, '&:not(:disabled):hover': { opacity: 1 } }}>
+                              <ArrowDownwardIcon sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          </Box>
                           <FormControlLabel
                             sx={{ flex: 1, mr: 0 }}
                             control={
