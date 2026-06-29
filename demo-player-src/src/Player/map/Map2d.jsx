@@ -44,6 +44,15 @@ const mapOverviews = {
 
 const FOLLOW_ZOOM = 1.8;
 
+function parseRoundtime(str) {
+  if (!str) return 0;
+  const parts = str.split(":");
+  if (parts.length === 2) {
+    return parseInt(parts[0], 10) * 60 + parseFloat(parts[1]);
+  }
+  return parseFloat(str) || 0;
+}
+
 class Map2d extends Component {
   constructor(props) {
     super(props);
@@ -56,7 +65,7 @@ class Map2d extends Component {
       shots: [],
       nades: [],
       nadeExplosions: [],
-      bomb: { x: -100, y: -100 },
+      bomb: { x: -100, y: -100, state: 0 },
       zoom: 1,
       panX: 0,
       panY: 0,
@@ -65,13 +74,17 @@ class Map2d extends Component {
       lastMouseY: 0,
       followedPlayerId: null,
       followedPlayerName: null,
+      nadeTeams: {},
+      bombPlantedAt: null,
+      currentRoundtimeSecs: 0,
     };
 
     props.messageBus.listen([4], this.onMessage.bind(this));
     props.messageBus.listen([1], this.tickUpdate.bind(this));
+    props.messageBus.listen([8], this.handleTimeUpdate.bind(this));
     props.messageBus.listen([9], this.handleShot.bind(this));
     props.messageBus.listen([MSG_PLAY_CHANGE], function () {
-      this.setState({ shots: [], nadeExplosions: [] });
+      this.setState({ shots: [], nadeExplosions: [], nadeTeams: {}, bombPlantedAt: null });
     }.bind(this));
     props.messageBus.listen([14], this.handleNadeExplosion.bind(this));
     props.messageBus.listen([MSG_FOLLOW_PLAYER], function (msg) {
@@ -85,15 +98,46 @@ class Map2d extends Component {
     document.addEventListener("keydown", this.handleKeyDown.bind(this));
   }
 
+  handleTimeUpdate(msg) {
+    const secs = parseRoundtime(msg.roundtime?.roundtime);
+    this.setState({ currentRoundtimeSecs: secs });
+  }
+
   tickUpdate(message) {
     if (!message.tickstate.playersList) return;
 
     const players = message.tickstate.playersList;
-    const newState = {
-      players,
-      nades: message.tickstate.nadesList,
-      bomb: message.tickstate.bomb,
-    };
+    const nades = message.tickstate.nadesList || [];
+    const bomb = message.tickstate.bomb;
+
+    const newState = { players, nades, bomb };
+
+    // Infer grenade team from nearest alive player when grenade first seen
+    const nadeTeams = { ...this.state.nadeTeams };
+    nades.forEach((nade) => {
+      if (nadeTeams[nade.id] !== undefined) return;
+      let minDist = Infinity;
+      let nearestTeam = "T";
+      players.forEach((p) => {
+        if (!p.alive) return;
+        const dx = p.x - nade.x;
+        const dy = p.y - nade.y;
+        const d = dx * dx + dy * dy;
+        if (d < minDist) { minDist = d; nearestTeam = p.team; }
+      });
+      nadeTeams[nade.id] = nearestTeam;
+    });
+    newState.nadeTeams = nadeTeams;
+
+    // Track bomb plant time (roundtime counts down, so record it at plant moment)
+    const prevBombState = this.state.bomb?.state;
+    if (bomb) {
+      if (bomb.state === 5 && prevBombState !== 5) {
+        newState.bombPlantedAt = this.state.currentRoundtimeSecs;
+      } else if (bomb.state !== 5 && bomb.state !== 1 && (prevBombState === 5 || prevBombState === 1)) {
+        newState.bombPlantedAt = null;
+      }
+    }
 
     if (this.state.followedPlayerId && this.mapRef.current) {
       const followed = players.find((p) => p.playerid === this.state.followedPlayerId);
@@ -101,8 +145,6 @@ class Map2d extends Component {
         const el = this.mapRef.current;
         const W = el.offsetWidth;
         const H = el.offsetHeight;
-        // Center the followed player: panX/Y computed so player maps to visual center
-        // Formula derived from: visual_x = cx + z*(x - cx + panX) = cx → panX = (0.5 - x/100)*W
         newState.panX = (0.5 - followed.x / 100) * W;
         newState.panY = (0.5 - followed.y / 100) * H;
         if (newState.followedPlayerName !== followed.name) {
@@ -128,7 +170,9 @@ class Map2d extends Component {
   }
 
   handleNadeExplosion(msg) {
-    this.setState({ nadeExplosions: [...this.state.nadeExplosions, msg.grenadeevent] });
+    const nade = msg.grenadeevent;
+    const team = this.state.nadeTeams[nade.id] || "T";
+    this.setState({ nadeExplosions: [...this.state.nadeExplosions, { ...nade, team }] });
   }
 
   onMessage(message) {
@@ -249,13 +293,21 @@ class Map2d extends Component {
     const nadeComponents = [];
     if (this.state.nades && this.state.nades.length > 0) {
       this.state.nades.forEach((n) => {
-        nadeComponents.push(<MapNade key={n.id} nade={n} />);
+        const team = this.state.nadeTeams[n.id] || "T";
+        nadeComponents.push(<MapNade key={n.id} nade={n} team={team} />);
       });
     }
 
     const nadeExplosions = this.state.nadeExplosions.map((n, i) =>
       n != null && n.id ? (
-        <MapNade key={n.id} nade={n} hide={true} removeCallback={this.removeNade.bind(this)} index={i} />
+        <MapNade
+          key={n.id}
+          nade={n}
+          team={n.team || "T"}
+          hide={true}
+          removeCallback={this.removeNade.bind(this)}
+          index={i}
+        />
       ) : null
     );
 
@@ -276,7 +328,11 @@ class Map2d extends Component {
           {nadeComponents}
           {shots}
           {nadeExplosions}
-          <MapBomb bomb={this.state.bomb} />
+          <MapBomb
+            bomb={this.state.bomb}
+            bombPlantedAt={this.state.bombPlantedAt}
+            currentRoundtimeSecs={this.state.currentRoundtimeSecs}
+          />
         </div>
         <KillFeed messageBus={this.props.messageBus} />
         {followedPlayerName && (

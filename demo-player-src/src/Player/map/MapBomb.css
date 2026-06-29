@@ -1,99 +1,90 @@
-.mapBomb {
-  width: 1.6%;
-  height: 1.6%;
-  margin-left: -0.8%;
-  margin-top: -0.8%;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: left 60ms linear, top 60ms linear, opacity 60ms linear, background-color 60ms linear;
-  will-change: left, top;
+.mapBomb-container {
   position: absolute;
-  opacity: 1;
-  background-color: orangered;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  z-index: 5;
+  transition: left 60ms linear, top 60ms linear;
+  will-change: left, top;
 }
 
 .mapBomb-icon {
-  width: 62%;
-  height: 62%;
-  object-fit: contain;
-  filter: brightness(0) invert(1);
-  pointer-events: none;
+  width: 1.8vh;
+  height: 1.8vh;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  filter: drop-shadow(0 0 2px rgba(255,255,255,0.9)) drop-shadow(0 0 1.5px rgba(255,255,255,0.7));
 }
 
-@keyframes planting {
-  0%, 50% {
-    background-color: orangered;
-  }
-  51%, 100% {
-    background-color: darkorange;
-  }
+@keyframes bombPlanting {
+  0%, 49% { opacity: 0.5; }
+  50%, 100% { opacity: 1; }
 }
 
-.mapBomb.planting {
-  animation: planting 500ms infinite;
+.mapBomb-planting {
+  animation: bombPlanting 400ms infinite;
 }
 
-@keyframes planted {
-  0%, 25% {
-    box-shadow: 0 0 1vh 1vh darkorange;
-  }
-  26%, 100% {
-    box-shadow: none;
-  }
+@keyframes bombDefusing {
+  0%, 49% { filter: drop-shadow(0 0 2px rgba(79,158,222,0.9)) drop-shadow(0 0 1.5px white); }
+  50%, 100% { filter: drop-shadow(0 0 3px rgba(255,255,255,1)) drop-shadow(0 0 2px rgba(79,158,222,0.9)); }
 }
 
-.mapBomb.planted {
-  animation: planted 500ms infinite;
+.mapBomb-defusing {
+  animation: bombDefusing 500ms infinite;
 }
 
-@keyframes defusing {
-  0%, 75% {
-    box-shadow: none;
-  }
-  76%, 100% {
-    box-shadow: 0 0 1vh 1vh darkorange;
-  }
+@keyframes bombExplode {
+  0% { filter: drop-shadow(0 0 2px white); }
+  20% { filter: drop-shadow(0 0 6px rgba(255,120,0,1)) drop-shadow(0 0 12px rgba(255,60,0,0.8)); }
+  100% { filter: drop-shadow(0 0 1px rgba(255,80,0,0.3)); opacity: 0.3; }
 }
 
-.mapBomb.defusing {
-  animation: planted 500ms infinite;
-  background-color: deepskyblue;
+.mapBomb-exploded .mapBomb-icon {
+  animation: bombExplode 3s ease-out forwards;
+  background-color: #ff4400;
 }
 
-@keyframes defused {
-  0% {
-    box-shadow: 0 0 1vh 1vh deepskyblue;
-  }
-  100% {
-    box-shadow: none;
-  }
+/* Planted bomb timer */
+.mapBomb-timer {
+  margin-top: 0.3vh;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid rgba(255, 122, 26, 0.5);
+  border-radius: 3px;
+  padding: 2px 5px;
+  text-align: center;
+  font-family: 'Inter', monospace;
+  white-space: nowrap;
+  line-height: 1.3;
 }
 
-.mapBomb.defused {
-  animation: defused 2000ms;
-  background-color: deepskyblue;
+.mapBomb-remaining {
+  color: white;
+  font-weight: 700;
+  font-size: 0.85vh;
 }
 
-@keyframes explode {
-  0% {
-    box-shadow: none;
-  }
-
-  10%, 15% {
-    box-shadow: 0 0 5vh 10vh darkorange;
-  }
-
-  95% {
-    box-shadow: 0 0 10vh 10vh darkorange;
-  }
-
-  100% {
-    box-shadow: none;
-  }
+.mapBomb-row {
+  font-size: 0.7vh;
+  font-weight: 500;
 }
 
-.mapBomb.explode {
-  animation: explode 5000ms linear;
+.mapBomb-kit {
+  color: var(--CTColor);
+}
+
+.mapBomb-nokit {
+  color: #aaa;
+}
+
+.mapBomb-kit.expired,
+.mapBomb-nokit.expired {
+  color: #555;
+  text-decoration: line-through;
 }
