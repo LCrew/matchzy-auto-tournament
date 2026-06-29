@@ -522,6 +522,10 @@ export default function LobbyRoom() {
   // Sidebar panel (sticky, follows scroll)
   const BTN = { height: 34, borderRadius: 1, fontSize: '0.8rem' } as const;
   const SECTION = { fontSize: '0.65rem', fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase' as const, letterSpacing: '0.08em', mt: 1 };
+  const LOBBY_FONT = '"Rajdhani", sans-serif';
+  // Applied to every Select in the lobby sidebar so the selected value and menu items share the font
+  const SELECT_SX = { fontFamily: LOBBY_FONT, fontWeight: 600, fontSize: '0.95rem' };
+  const MENU_ITEM_SX = { fontFamily: LOBBY_FONT, fontWeight: 600, fontSize: '0.95rem' };
 
   const rconCmd = async (cmd: string, successMsg: string) => {
     if (!lobby.server) return;
@@ -562,8 +566,8 @@ export default function LobbyRoom() {
               <Typography sx={SECTION}>Config</Typography>
               <Divider />
               <FormControl size="small" fullWidth disabled={!isCreator}>
-                <InputLabel>Mode</InputLabel>
-                <Select value={lobby.gameMode} label="Mode" onChange={(e) => {
+                <InputLabel sx={{ fontFamily: LOBBY_FONT }}>Mode</InputLabel>
+                <Select value={lobby.gameMode} label="Mode" sx={SELECT_SX} onChange={(e) => {
                   const newMode = e.target.value as string;
                   const modePool = mapPools.find((p) => p.gameModes?.includes(newMode)) || mapPools.find((p) => p.isDefault);
                   const updates: Record<string, unknown> = { gameMode: newMode };
@@ -573,8 +577,10 @@ export default function LobbyRoom() {
                   {gameModes.map((mode) => {
                     const ModeIcon = GAMEMODE_ICONS[mode.id] ?? SportsEsportsIcon;
                     return (
-                      <MenuItem key={mode.id} value={mode.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.75 }}>
-                        <ModeIcon sx={{ fontSize: 16, color: 'rgba(255,255,255,0.9)', opacity: 0.5, flexShrink: 0 }} />
+                      <MenuItem key={mode.id} value={mode.id} sx={{ ...MENU_ITEM_SX, display: 'flex', alignItems: 'center', gap: 1.5, py: 0.75 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                          <ModeIcon sx={{ fontSize: 16, color: 'rgba(255,255,255,0.9)', opacity: 0.5 }} />
+                        </Box>
                         {mode.name}
                       </MenuItem>
                     );
@@ -583,19 +589,19 @@ export default function LobbyRoom() {
               </FormControl>
               {!isPluginMode && (
                 <FormControl size="small" fullWidth disabled={!isCreator}>
-                  <InputLabel>Format</InputLabel>
-                  <Select value={lobby.format} label="Format" onChange={(e) => handleUpdateConfig({ format: e.target.value })}>
-                    <MenuItem value="bo1">BO1</MenuItem>
-                    <MenuItem value="bo3">BO3</MenuItem>
-                    <MenuItem value="bo5">BO5</MenuItem>
+                  <InputLabel sx={{ fontFamily: LOBBY_FONT }}>Format</InputLabel>
+                  <Select value={lobby.format} label="Format" sx={SELECT_SX} onChange={(e) => handleUpdateConfig({ format: e.target.value })}>
+                    <MenuItem value="bo1" sx={MENU_ITEM_SX}>BO1</MenuItem>
+                    <MenuItem value="bo3" sx={MENU_ITEM_SX}>BO3</MenuItem>
+                    <MenuItem value="bo5" sx={MENU_ITEM_SX}>BO5</MenuItem>
                   </Select>
                 </FormControl>
               )}
               {!isPluginMode && (
                 <FormControl size="small" fullWidth disabled={!isCreator}>
-                  <InputLabel>Per team</InputLabel>
-                  <Select value={lobby.teamSize} label="Per team" onChange={(e) => handleUpdateConfig({ teamSize: Number(e.target.value) })}>
-                    {[1,2,3,4,5,6,7,8,9,10].map((n) => (<MenuItem key={n} value={n}>{n}v{n}</MenuItem>))}
+                  <InputLabel sx={{ fontFamily: LOBBY_FONT }}>Per team</InputLabel>
+                  <Select value={lobby.teamSize} label="Per team" sx={SELECT_SX} onChange={(e) => handleUpdateConfig({ teamSize: Number(e.target.value) })}>
+                    {[1,2,3,4,5,6,7,8,9,10].map((n) => (<MenuItem key={n} value={n} sx={MENU_ITEM_SX}>{n}v{n}</MenuItem>))}
                   </Select>
                 </FormControl>
               )}
