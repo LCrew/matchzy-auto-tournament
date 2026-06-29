@@ -53,6 +53,15 @@ RUN echo "Building backend (TypeScript compilation)..." && \
     yarn build:client && \
     echo "✅ Frontend build complete"
 
+# Build demo player (separate Vite project; must run AFTER build:client since
+# emptyOutDir wipes api/public/ and would delete the demo player output)
+RUN echo "Building demo player..." && \
+    cd demo-player-src && \
+    npm install && \
+    npm run build && \
+    cp -r dist/. ../api/public/demo-player/ && \
+    echo "✅ Demo player build complete"
+
 # -------------------------------------------------------------------
 # release: lean production image with Node.js and Caddy
 # NO node_modules needed - backend is bundled!
