@@ -16,6 +16,12 @@ import type { CreateMatchInput, MatchConfig, MatchPlayer } from '../types/match.
 
 const MATCHZY_MODES = new Set(['competitive', 'clownmode', 'practice']);
 
+// Modes whose lobby UI uses a single unassigned player pool instead of a team1/team2
+// split (mirrors PLUGIN_GAME_MODES in client/src/pages/LobbyRoom.tsx). These modes
+// don't require — or even have — a team veto/captain flow, and can be started with
+// any number of players, including zero (bots-only / empty warmup server).
+const NO_TEAM_SPLIT_MODES = new Set(['retake', 'retakes', 'prefire', 'practice', 'deathmatch', 'gungame']);
+
 function generateId(): string {
   return `lobby-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
@@ -358,11 +364,30 @@ class LobbyService {
 
     const state = lobby.state;
 
-    const t1Count = state.players.filter((p) => p.team === 'team1').length;
-    const t2Count = state.players.filter((p) => p.team === 'team2').length;
-    if (t1Count === 0 || t2Count === 0) throw new Error('Both teams must have players');
-
     if (lobby.mapPool.length === 0) throw new Error('No maps in the map pool');
+
+    const noTeamSplit = NO_TEAM_SPLIT_MODES.has(lobby.gameMode);
+
+    if (!noTeamSplit) {
+      const t1Count = state.players.filter((p) => p.team === 'team1').length;
+      const t2Count = state.players.filter((p) => p.team === 'team2').length;
+      if (t1Count === 0 || t2Count === 0) throw new Error('Both teams must have players');
+    } else {
+      // No team split, no captains — there's nothing to veto. Take the whole map
+      // pool as-is and go straight to ready (mirrors the single-map auto-pick below).
+      state.veto = {
+        availableMaps: [],
+        bannedMaps: [],
+        pickedMaps: [...lobby.mapPool],
+        actions: [],
+        currentTurn: 'team1',
+        currentAction: 'ban',
+        completed: true,
+        turnDeadline: 0,
+      };
+      await this.updateStatus(id, 'ready');
+      return this.saveState(id, state);
+    }
 
     // Auto-assign captains if not set
     if (!state.captains.team1) {
@@ -738,7 +763,9 @@ class LobbyService {
     const state = lobby.state;
     const t1 = state.players.filter((p) => p.team === 'team1');
     const t2 = state.players.filter((p) => p.team === 'team2');
-    if (t1.length === 0 || t2.length === 0) throw new Error('Both teams must have players');
+    if (!NO_TEAM_SPLIT_MODES.has(lobby.gameMode) && (t1.length === 0 || t2.length === 0)) {
+      throw new Error('Both teams must have players');
+    }
 
     const maps = state.veto?.completed ? state.veto.pickedMaps : lobby.mapPool;
     if (maps.length === 0) throw new Error('No maps selected');

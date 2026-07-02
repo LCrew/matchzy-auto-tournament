@@ -674,7 +674,7 @@ export default function LobbyRoom() {
               <Box sx={{ mt: 1 }} />
               {(() => {
                 const canStart = isPluginMode
-                  ? lobby.status === 'waiting' && lobby.state.players.length > 0
+                  ? lobby.status === 'waiting'
                   : lobby.status === 'waiting' && team1Players.length > 0 && team2Players.length > 0;
                 return (
               <GlowBorder
